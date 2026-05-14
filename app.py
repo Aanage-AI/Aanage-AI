@@ -1,634 +1,667 @@
-"""
-ආනාගේ AI — StudyMate
-Premium rebuild — SVG icons, sticky footer, sidebar always visible.
-"""
+/* ═══════════════════════════════════════════════════════════
+   ආනාගේ AI — style.css  v6.1  (full fixes)
+   ═══════════════════════════════════════════════════════════ */
 
-import io
-import re
-import base64
-import hashlib
-import datetime
-from pathlib import Path
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Sinhala:wght@400;700;900&family=Sora:wght@400;600;700&display=swap');
 
-import requests
-import streamlit as st
-import PyPDF2
-import docx
-import google.generativeai as genai
-
-# ── Page config ────────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="ආනාගේ AI",
-    page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={},
-)
-
-# ── Load external CSS ──────────────────────────────────────────────────────────
-CSS_PATH = Path(__file__).parent / "style.css"
-if CSS_PATH.exists():
-    st.markdown(f"<style>{CSS_PATH.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
-
-# ── Secrets ────────────────────────────────────────────────────────────────────
-ROOT_FOLDER_ID  = st.secrets.get("DRIVE_ROOT_FOLDER_ID", "")
-DRIVE_API_KEY   = st.secrets.get("GOOGLE_DRIVE_API_KEY", "")
-ADMIN_EMAIL     = st.secrets.get("ADMIN_EMAIL", "admin@aana.lk")
-ADMIN_PASS_HASH = st.secrets.get(
-    "ADMIN_PASS_HASH",
-    hashlib.sha256("aana@2025!".encode()).hexdigest()
-)
-
-# ── Session state defaults ─────────────────────────────────────────────────────
-DEFAULTS = {
-    "messages": [],
-    "current_subject_id": None,
-    "docs": {},
-    "subject_name": "",
-    "google_search": False,
-    "admin_logged_in": False,
-    "gemini_key": "",
-    "api_key_status": None,
-    "free_api_keys": [],
-    "api_usage_today": {},
-    "usage_date": str(datetime.date.today()),
-    "greeting_shown": False,
-    "show_free_keys": False,
-    "show_admin": False,
-    "admin_login_error": False,
+:root {
+  --bg:          #eceae4;
+  --surface:     #faf8f5;
+  --surface2:    #f3f0ea;
+  --border:      #ddd8cf;
+  --border-soft: #e8e4dc;
+  --text:        #1e1e2a;
+  --text-mid:    #4a4a5c;
+  --text-soft:   #7a7a8a;
+  --accent:      #1b3568;
+  --accent-glow: #2a4f9e;
+  --gold:        #e8c840;
+  --gold-glow:   #ffd700;
+  --blue:        #3b82f6;
+  --green:       #16a34a;
+  --red:         #dc2626;
+  --sidebar-bg:  #0b1020;
+  --sidebar2:    #121a2e;
+  --sidebar-w:   280px;
+  --user-bg:     #1b3568;
+  --ai-bg:       #ffffff;
+  --ai-border:   #e2ddd4;
+  --chat-input:  #ffffff;
 }
-for k, v in DEFAULTS.items():
-    if k not in st.session_state:
-        st.session_state[k] = v
 
-today = str(datetime.date.today())
-if st.session_state.usage_date != today:
-    st.session_state.api_usage_today = {}
-    st.session_state.usage_date = today
+*, *::before, *::after { box-sizing: border-box; }
 
-# ── Google Drive helpers ───────────────────────────────────────────────────────
-DRIVE_API_BASE = "https://www.googleapis.com/drive/v3/files"
-FOLDER_MIME    = "application/vnd.google-apps.folder"
+html, body, [data-testid="stApp"] {
+  background: var(--bg) !important;
+  font-family: 'DM Sans', 'Noto Sans Sinhala', sans-serif !important;
+  color: var(--text) !important;
+  height: 100%;
+}
 
-def list_folder(folder_id, api_key):
-    folders, files = [], []
-    page_token = None
-    while True:
-        params = {
-            "q": f"'{folder_id}' in parents and trashed=false",
-            "fields": "nextPageToken,files(id,name,mimeType)",
-            "orderBy": "name",
-            "pageSize": 100,
-            "key": api_key,
-        }
-        if page_token:
-            params["pageToken"] = page_token
-        r = requests.get(DRIVE_API_BASE, params=params, timeout=15)
-        r.raise_for_status()
-        data = r.json()
-        if "error" in data:
-            raise RuntimeError(data["error"].get("message", str(data["error"])))
-        for f in data.get("files", []):
-            if f["mimeType"] == FOLDER_MIME:
-                folders.append((f["name"], f["id"]))
-            else:
-                files.append((f["name"], f["id"]))
-        page_token = data.get("nextPageToken")
-        if not page_token:
-            break
-    return folders, files
+/* Hide Streamlit chrome (but not sidebar collapse) */
+#MainMenu,
+header[data-testid="stHeader"],
+footer,
+[data-testid="stToolbar"],
+[data-testid="manage-app-button"],
+.stDeployButton,
+button[title="View app in Streamlit Community Cloud"],
+[data-testid="stStatusWidget"],
+[data-testid="stDecoration"] {
+  display: none !important;
+}
 
-def download_file(file_id, api_key):
-    session = requests.Session()
-    headers = {"User-Agent": "Mozilla/5.0"}
-    url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={api_key}"
-    r = session.get(url, headers=headers, timeout=40, allow_redirects=True)
-    if r.status_code == 403 or len(r.content) < 100:
-        url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
-        r = session.get(url, headers=headers, timeout=40, allow_redirects=True)
-        if b"Virus scan warning" in r.content[:4000]:
-            token = re.search(r'confirm=([0-9A-Za-z_\-]+)', r.text)
-            uuid  = re.search(r'uuid=([0-9A-Za-z_\-]+)', r.text)
-            qs = f"&confirm={token.group(1)}" if token else ""
-            qs += f"&uuid={uuid.group(1)}" if uuid else ""
-            r = session.get(
-                f"https://drive.google.com/uc?export=download&id={file_id}{qs}",
-                headers=headers, timeout=40
-            )
-    r.raise_for_status()
-    return r.content
+/* Main layout */
+[data-testid="stAppViewContainer"] { padding: 0 !important; }
+[data-testid="stMain"] { padding: 0 !important; }
+.block-container {
+  padding: 0 1.8rem 4rem !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
 
-def extract_text(file_bytes, filename):
-    ext = Path(filename).suffix.lower()
-    try:
-        if ext == ".pdf":
-            reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
-            return "\n".join(p.extract_text() or "" for p in reader.pages)
-        elif ext in (".docx", ".doc"):
-            d = docx.Document(io.BytesIO(file_bytes))
-            return "\n".join(p.text for p in d.paragraphs)
-        elif ext == ".pptx":
-            try:
-                from pptx import Presentation
-                prs = Presentation(io.BytesIO(file_bytes))
-                return "\n".join(
-                    shape.text for slide in prs.slides
-                    for shape in slide.shapes if hasattr(shape, "text")
-                )
-            except ImportError:
-                return "[PPTX support requires python-pptx]"
-        elif ext in (".xlsx", ".xls"):
-            try:
-                import openpyxl
-                wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
-                return "\n".join(
-                    "\t".join(str(c) if c is not None else "" for c in row)
-                    for ws in wb.worksheets for row in ws.iter_rows(values_only=True)
-                )
-            except ImportError:
-                return "[XLSX support requires openpyxl]"
-        elif ext in (".txt", ".md", ".csv", ".json"):
-            return file_bytes.decode("utf-8", errors="ignore")
-        else:
-            decoded = file_bytes.decode("utf-8", errors="ignore")
-            return decoded if decoded.strip() else f"[Unsupported: {ext}]"
-    except Exception as e:
-        return f"[Could not read {filename}: {e}]"
+/* ========== SIDEBAR ========== */
+section[data-testid="stSidebar"] {
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid rgba(255,255,255,0.08) !important;
+  width: var(--sidebar-w) !important;
+  min-width: var(--sidebar-w) !important;
+  max-width: var(--sidebar-w) !important;
+}
 
-@st.cache_data(show_spinner=False, ttl=1800)
-def get_structure(root_id, api_key):
-    tree = {}
-    years, _ = list_folder(root_id, api_key)
-    for year_name, year_id in years:
-        tree[year_name] = {}
-        sems, _ = list_folder(year_id, api_key)
-        for sem_name, sem_id in sems:
-            tree[year_name][sem_name] = {}
-            subjects, _ = list_folder(sem_id, api_key)
-            for subj_name, subj_id in subjects:
-                tree[year_name][sem_name][subj_name] = subj_id
-    return tree
+[data-testid="stSidebarContent"] {
+  padding: 1rem 0.9rem !important;
+  background: var(--sidebar-bg) !important;
+}
 
-@st.cache_data(show_spinner=False, ttl=600)
-def load_subject_docs(subject_folder_id, api_key):
-    SUPPORTED = {".pdf", ".docx", ".doc", ".txt", ".md", ".csv",
-                 ".json", ".pptx", ".xlsx", ".xls"}
-    _, files = list_folder(subject_folder_id, api_key)
-    docs = {}
-    for name, fid in files:
-        if Path(name).suffix.lower() not in SUPPORTED:
-            continue
-        try:
-            raw  = download_file(fid, api_key)
-            text = extract_text(raw, name)
-            if text.strip():
-                docs[name] = text
-        except Exception:
-            pass
-    return docs
+[data-testid="stSidebar"] * {
+  color: #cbd5e6 !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] .stMarkdown h1,
+[data-testid="stSidebar"] .stMarkdown h2,
+[data-testid="stSidebar"] .stMarkdown h3 {
+  color: #f0f3fa !important;
+  font-weight: 600;
+}
 
-# ── Gemini ─────────────────────────────────────────────────────────────────────
-def check_api_key(key):
-    try:
-        genai.configure(api_key=key)
-        m = genai.GenerativeModel("gemini-2.5-flash")
-        m.generate_content("Hi")
-        return True
-    except Exception:
-        return False
+/* Collapse button (visible) */
+[data-testid="stSidebarCollapseButton"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute;
+  right: -12px;
+  top: 1.2rem;
+  z-index: 100;
+  background: var(--sidebar-bg);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+[data-testid="stSidebarCollapseButton"] button {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100%;
+  height: 100%;
+}
+[data-testid="stSidebarCollapseButton"] button svg {
+  color: var(--gold) !important;
+  stroke: var(--gold) !important;
+  width: 18px;
+  height: 18px;
+}
 
-def ask_gemini(gemini_key, question, docs, use_google=False):
-    genai.configure(api_key=gemini_key)
-    context = "\n\n".join(
-        f"=== Document: {name} ===\n{text[:12000]}"
-        for name, text in docs.items()
-    )
-    note_prompt = f"""You are AI ආනා, a friendly Sri Lankan university study assistant.
-Answer using the provided documents. Be thorough and clear.
-Format in clear paragraphs. Use bullet points where helpful.
-At the very end write: **Sources:** [Doc Name]
-If the answer is not in the documents, say so and suggest enabling Google Search.
+/* Collapsed control (reopen tab) */
+[data-testid="stSidebarCollapsedControl"] {
+  background: var(--sidebar-bg) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-left: none !important;
+  border-radius: 0 10px 10px 0 !important;
+  box-shadow: 2px 0 10px rgba(0,0,0,0.3) !important;
+  visibility: visible !important;
+  display: flex !important;
+  z-index: 999 !important;
+  top: 4rem !important;
+  left: 0 !important;
+  padding: 0.5rem 0.3rem !important;
+}
+[data-testid="stSidebarCollapsedControl"] button svg {
+  color: var(--gold) !important;
+  stroke: var(--gold) !important;
+  width: 20px;
+  height: 20px;
+}
 
----DOCUMENTS---
-{context}
----END---
+/* Sidebar buttons */
+[data-testid="stSidebar"] .stButton > button {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: #cbd5e6 !important;
+  border-radius: 10px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  padding: 0.45rem 0.7rem !important;
+  height: auto !important;
+  transition: all 0.2s ease !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+  background: rgba(59,130,246,0.15) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+  color: #eef4ff !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+  background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(27,53,104,0.4) !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg, #233e7e 0%, #3462b8 100%) !important;
+  box-shadow: 0 3px 12px rgba(42,79,158,0.6) !important;
+}
 
-Student question: {question}"""
+/* Expanders */
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+  background: rgba(255,255,255,0.02) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 12px !important;
+  margin-bottom: 0.35rem !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 0.45rem 0.7rem !important;
+  color: #cbd5e6 !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+  color: #ffffff !important;
+  background: rgba(59,130,246,0.08) !important;
+}
 
-    google_prompt = f"""You are AI ආනා, a friendly Sri Lankan university study assistant.
-First check the provided documents. If the answer isn't fully there, supplement with web knowledge.
-Format in clear paragraphs. Cite sources where possible.
+/* Inputs */
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  color: #eef4ff !important;
+  border-radius: 10px !important;
+  font-size: 0.75rem !important;
+  padding: 0.4rem 0.7rem !important;
+}
+[data-testid="stSidebar"] input:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2) !important;
+}
+[data-testid="stSidebar"] label {
+  font-size: 0.7rem !important;
+  color: rgba(203,213,230,0.7) !important;
+}
 
----DOCUMENTS---
-{context}
----END---
+/* Sidebar custom elements */
+.sb-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0 0.8rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  margin-bottom: 0.8rem;
+}
+.sb-brand-sinhala {
+  font-family: 'Noto Sans Sinhala', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  color: #ffffff !important;
+}
+.sb-brand-ai {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gold) !important;
+  text-shadow: 0 0 12px rgba(232,200,64,0.5);
+}
+.sb-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5f7fbf !important;
+  margin: 0.7rem 0 0.3rem 0;
+}
+.sb-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 0.7rem 0;
+}
+.sb-subject-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 40px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #b9d0ff !important;
+  margin-bottom: 0.5rem;
+}
+.sb-admin-on {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: rgba(232,200,64,0.08);
+  border: 1px solid rgba(232,200,64,0.2);
+  border-radius: 12px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold) !important;
+  margin-bottom: 0.5rem;
+}
+.fk-warn-box {
+  background: rgba(220,38,38,0.05);
+  border: 1px solid rgba(220,38,38,0.15);
+  border-radius: 12px;
+  padding: 0.6rem;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+.sb-footer {
+  font-size: 0.58rem;
+  color: rgba(203,213,230,0.3) !important;
+  text-align: center;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: 0.8rem;
+}
 
-Student question: {question}"""
+/* ========== HEADER ========== */
+.aana-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-left: -1.8rem;
+  margin-right: -1.8rem;
+  width: calc(100% + 3.6rem);
+  background: linear-gradient(120deg, #0a1022 0%, #0f1a3a 55%, #0c1328 100%);
+  padding: 0.6rem 1.8rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.hdr-left { display: flex; align-items: center; gap: 0.8rem; }
 
-    prompt = google_prompt if use_google else note_prompt
-    if use_google:
-        model = genai.GenerativeModel("gemini-2.5-flash", tools="google_search_retrieval")
-    else:
-        model = genai.GenerativeModel("gemini-2.5-flash")
-    try:
-        return model.generate_content(prompt).text
-    except Exception:
-        return genai.GenerativeModel("gemini-2.5-flash").generate_content(note_prompt).text
+.hdr-avatar-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid rgba(59,130,246,0.8);
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2), 0 0 18px rgba(59,130,246,0.5);
+  animation: blueRingPulse 3s ease-in-out infinite;
+}
+@keyframes blueRingPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(59,130,246,0.2), 0 0 18px rgba(59,130,246,0.5); }
+  50%       { box-shadow: 0 0 0 4px rgba(59,130,246,0.3), 0 0 28px rgba(59,130,246,0.7); }
+}
+.hdr-avatar { width: 100%; height: 100%; object-fit: cover; }
 
-def track_usage(key):
-    k = key[:8] + "…"
-    st.session_state.api_usage_today[k] = st.session_state.api_usage_today.get(k, 0) + 1
+.hdr-title-wrap { display: flex; flex-direction: column; line-height: 1.2; }
+.hdr-brand { display: flex; align-items: baseline; gap: 2px; }
+.hdr-sinhala {
+  font-family: 'Noto Sans Sinhala', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #fff;
+}
+.hdr-ai-text {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 0 0 16px rgba(232,200,64,0.5);
+}
+.hdr-sub {
+  font-size: 0.55rem;
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+  letter-spacing: 0.05em;
+}
+.hdr-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.hdr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 40px;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.hdr-pill-google {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.5) !important;
+}
+.hdr-pill-google.active {
+  background: rgba(22,163,74,0.15);
+  border-color: rgba(22,163,74,0.4);
+  color: #4ade80 !important;
+}
+.hdr-pill-admin {
+  background: rgba(232,200,64,0.1);
+  border-color: rgba(232,200,64,0.3);
+  color: var(--gold) !important;
+}
+.hdr-shimmer {
+  height: 2px;
+  margin-left: -1.8rem;
+  margin-right: -1.8rem;
+  width: calc(100% + 3.6rem);
+  background: linear-gradient(90deg,
+    transparent 0%, rgba(232,200,64,0) 15%,
+    var(--gold) 50%, rgba(232,200,64,0) 85%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmerMove 3.5s ease-in-out infinite;
+  margin-bottom: 1rem;
+}
+@keyframes shimmerMove {
+  0%   { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
 
-def get_usage(key):
-    return st.session_state.api_usage_today.get(key[:8] + "…", 0)
+/* ========== STATUS BAR & HERO ========== */
+.status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  padding: 0.45rem 1rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.75rem;
+  color: var(--text-mid);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+.doc-tag {
+  background: #e5eeff;
+  color: #1b3568;
+  border-radius: 20px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.gsearch-badge { color: #16a34a; font-weight: 700; }
 
-# ── Image helper ───────────────────────────────────────────────────────────────
-def img_b64(path_str):
-    p = Path(path_str)
-    if p.exists():
-        ext = p.suffix.lstrip(".")
-        return f"data:image/{ext};base64,{base64.b64encode(p.read_bytes()).decode()}"
-    return ""
+.hero-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 1rem 2rem;
+  gap: 1rem;
+}
+.hero-avatar-wrap {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #3b82f6;
+  box-shadow: 0 0 0 6px rgba(59,130,246,0.15), 0 0 30px rgba(59,130,246,0.5);
+  animation: heroBlueGlow 3s ease-in-out infinite;
+}
+@keyframes heroBlueGlow {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(59,130,246,0.15), 0 0 30px rgba(59,130,246,0.5); }
+  50%       { box-shadow: 0 0 0 9px rgba(59,130,246,0.25), 0 0 48px rgba(59,130,246,0.8); }
+}
+.hero-avatar { width: 100%; height: 100%; object-fit: cover; }
+.hero-title {
+  font-family: 'Noto Sans Sinhala', sans-serif;
+  font-size: 1.9rem;
+  font-weight: 900;
+  color: var(--accent);
+}
+.hero-ai { color: var(--gold-glow); text-shadow: 0 0 20px rgba(255,215,0,0.4); }
+.hero-sub { font-size: 0.85rem; color: var(--text-soft); max-width: 380px; line-height: 1.6; }
+.hero-steps {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+.hero-step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  color: var(--text-mid);
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 40px;
+  padding: 0.35rem 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.hero-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.load-banner {
+  text-align: center;
+  padding: 2rem 1.5rem;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: 18px;
+}
 
-ADMIN_IMG_PATH = Path(__file__).parent / "assets" / "admin" / "admin.jpg"
-ADMIN_IMG_SRC  = img_b64(ADMIN_IMG_PATH) or "https://ui-avatars.com/api/?name=AI&background=162b56&color=9ecfff&size=90"
+/* ========== CHAT MESSAGES (FIXED) ========== */
+/* Assistant message bubble - white background, dark text */
+[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
+  background: var(--ai-bg) !important;
+  color: var(--text) !important;
+  border-radius: 6px 20px 20px 20px !important;
+  padding: 0.7rem 1rem !important;
+  font-size: 0.85rem !important;
+  max-width: 80% !important;
+  border: 1px solid var(--ai-border) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
+  line-height: 1.65 !important;
+}
 
-# ── SVG icon helpers ───────────────────────────────────────────────────────────
-def ico(path, size=14, color="currentColor"):
-    """Return inline SVG for Lucide-style icons."""
-    icons = {
-        "key":      '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>', 
-        "check":    '<path d="M20 6 9 17l-5-5"/>',
-        "search":   '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
-        "folder":   '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/>',
-        "book":     '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>', 
-        "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
-        "chat":     '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
-        "lock":     '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
-        "unlock":   '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
-        "trash":    '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
-        "plus":     '<path d="M5 12h14"/><path d="M12 5v14"/>',
-        "copy":     '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
-        "globe":    '<circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>',
-        "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
-        "video":    '<polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/>',
-        "star":     '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
-    }
-    svg_content = icons.get(path, '<circle cx="12" cy="12" r="5"/>')
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_content}</svg>'
+/* Force dark text for all content inside assistant bubble */
+[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] * {
+  color: var(--text) !important;
+}
 
-def sb_btn_label(icon_name, text, color="rgba(184,196,216,.8)"):
-    return f'{ico(icon_name, 13, color)}&nbsp;&nbsp;{text}'
+/* Assistant avatar - perfect circle with blue glow */
+[data-testid="stChatMessage"][data-role="assistant"] img,
+[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageAvatarIcon"] {
+  border-radius: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  object-fit: cover !important;
+  border: 2px solid rgba(27,53,104,0.3) !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2), 0 0 12px rgba(59,130,246,0.4) !important;
+  display: inline-block !important;
+  overflow: hidden !important;
+}
 
-# ══════════════════════════════════════════════════════════════════════════════
-#   HIDE STREAMLIT CHROME (but NOT sidebar collapse)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<style>
-#MainMenu { visibility: hidden !important; }
-header[data-testid="stHeader"] { display: none !important; }
-footer { display: none !important; }
-[data-testid="stToolbar"] { display: none !important; }
-[data-testid="manage-app-button"] { display: none !important; }
-.stDeployButton { display: none !important; }
-button[title="View app in Streamlit Community Cloud"] { display: none !important; }
-[data-testid="stStatusWidget"] { display: none !important; }
-[data-testid="stDecoration"] { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
+/* Ensure avatar container is circular */
+[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageAvatarIcon"] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+}
 
-# ══════════════════════════════════════════════════════════════════════════════
-#   HEADER
-# ══════════════════════════════════════════════════════════════════════════════
-google_active = st.session_state.google_search
-admin_in      = st.session_state.admin_logged_in
+/* User avatar - circular */
+[data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageAvatarIcon"] {
+  border-radius: 50% !important;
+  background: var(--user-bg) !important;
+  color: white !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
 
-google_icon = ico("globe", 12, "#4ade80" if google_active else "rgba(255,255,255,.35)")
-google_txt  = "Google ON" if google_active else "Google OFF"
-admin_icon  = ico("unlock" if admin_in else "lock", 12, "#e8c840")
-admin_txt   = "Logged In" if admin_in else "Admin"
+/* User message bubble - right aligned, white text on blue */
+[data-testid="stChatMessage"][data-role="user"] {
+  flex-direction: row-reverse !important;
+}
+[data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
+  background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
+  color: #ffffff !important;
+  border-radius: 20px 6px 20px 20px !important;
+  padding: 0.6rem 1rem !important;
+  font-size: 0.85rem !important;
+  max-width: 72% !important;
+  margin-left: auto !important;
+  box-shadow: 0 3px 12px rgba(27,53,104,0.25) !important;
+  line-height: 1.55 !important;
+}
+[data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] * {
+  color: #ffffff !important;
+}
 
-st.markdown(f"""
-<div class="aana-header">
-  <div class="hdr-left">
-    <div class="hdr-avatar-wrap">
-      <img src="{ADMIN_IMG_SRC}" alt="ආනා" class="hdr-avatar"
-           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=0f1628&color=3b82f6&size=38'">
-    </div>
-    <div class="hdr-title-wrap">
-      <div class="hdr-brand">
-        <span class="hdr-sinhala">ආනාගේ</span>
-        <span class="hdr-ai-text">&nbsp;AI</span>
-      </div>
-      <span class="hdr-sub">Himan Thathuwa Kethala Hiruwa</span>
-    </div>
-  </div>
-  <div class="hdr-right">
-    <span class="hdr-pill hdr-pill-google {'active' if google_active else ''}">{google_icon}&nbsp;{google_txt}</span>
-    <span class="hdr-pill hdr-pill-admin">{admin_icon}&nbsp;{admin_txt}</span>
-  </div>
-</div>
-<div class="hdr-shimmer"></div>
-""", unsafe_allow_html=True)
+/* Chat input */
+[data-testid="stChatInput"] {
+  background: var(--chat-input) !important;
+  border: 1.5px solid var(--border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05) !important;
+}
+[data-testid="stChatInput"] textarea {
+  font-size: 0.85rem !important;
+  color: var(--text) !important;
+}
+[data-testid="stChatInput"] button {
+  background: var(--accent) !important;
+  border-radius: 12px !important;
+}
+[data-testid="stChatInput"] button:hover {
+  background: var(--accent-glow) !important;
+}
 
-# ══════════════════════════════════════════════════════════════════════════════
-#   CHECK SECRETS
-# ══════════════════════════════════════════════════════════════════════════════
-if not DRIVE_API_KEY or not ROOT_FOLDER_ID:
-    st.error("⚠️ DRIVE_ROOT_FOLDER_ID and GOOGLE_DRIVE_API_KEY must be set in Streamlit secrets.")
-    st.stop()
+/* ========== FOOTER ========== */
+.aana-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 998;
+  background: linear-gradient(120deg, #0a1022 0%, #0f1a3a 55%, #0c1328 100%);
+  padding: 0.45rem 1.8rem;
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.3);
+}
+.ftr-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+.ftr-copy {
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.25);
+}
+.ftr-dev {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  color: rgba(255,255,255,0.3);
+}
+.ftr-heart {
+  color: #ef4444;
+  font-size: 0.7rem;
+  animation: heartbeat 1.4s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.25); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.12); }
+  56%       { transform: scale(1); }
+}
+.ftr-name {
+  font-weight: 800;
+  font-family: 'Sora', sans-serif;
+  color: var(--gold) !important;
+  text-decoration: none;
+  text-shadow: 0 0 8px rgba(232,200,64,0.6);
+  animation: dsvbPulse 2.2s ease-in-out infinite;
+}
+.ftr-name:hover { text-decoration: none; }
+@keyframes dsvbPulse {
+  0%, 100% { text-shadow: 0 0 8px rgba(232,200,64,0.6), 0 0 18px rgba(255,215,0,0.3); }
+  50%       { text-shadow: 0 0 14px rgba(255,215,0,1), 0 0 32px rgba(255,215,0,0.6); }
+}
 
-# ══════════════════════════════════════════════════════════════════════════════
-#   SIDEBAR
-# ══════════════════════════════════════════════════════════════════════════════
-with st.sidebar:
-    st.markdown('<div class="sb-brand"><span class="sb-brand-sinhala">ආනාගේ</span><span class="sb-brand-ai">&nbsp;AI</span></div>', unsafe_allow_html=True)
+/* Main content bottom padding for footer */
+.main-content {
+  padding-bottom: 3.5rem;
+}
 
-    # ── Free API keys ───────────────────────────────────────────────────────
-    if st.button("🔑 API Key නැද්ද..?", use_container_width=True, key="btn_freekeys"):
-        st.session_state.show_free_keys = not st.session_state.show_free_keys
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
 
-    if st.session_state.show_free_keys:
-        st.markdown('<div class="fk-warn-box">', unsafe_allow_html=True)
-        st.markdown("**මෙවුවා හැමෝම use කරනවා — limit වැදිලා ඇති** 😤\n\nVideo බලලා තමන්ගේ key හදාගනිං:")
-        st.markdown(f'[{ico("video",12,"#58a6ff")}&nbsp; How to get your free API key](https://youtu.be/YOUR_VIDEO_LINK_HERE)', unsafe_allow_html=False)
-        free_keys = st.session_state.free_api_keys
-        if free_keys:
-            for k in free_keys:
-                masked = k[:12] + "…" + k[-4:] if len(k) > 18 else k
-                col1, col2 = st.columns([4, 1])
-                with col1:
-                    st.code(masked, language=None)
-                with col2:
-                    if st.button("📋", key=f"copy_{k[:8]}", help="Copy key"):
-                        st.write(f"`{k}`")
-                st.caption(f"Used {get_usage(k)}× today")
-        else:
-            st.caption("No free keys yet. Admin can add them.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    # ── API Key ─────────────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Gemini API Key</div>', unsafe_allow_html=True)
-    api_key_input = st.text_input(
-        "API Key", value=st.session_state.gemini_key,
-        type="password", placeholder="AIza…",
-        label_visibility="collapsed", key="api_key_field"
-    )
-    if api_key_input != st.session_state.gemini_key:
-        st.session_state.gemini_key = api_key_input
-        st.session_state.api_key_status = None
-
-    col_check, col_link = st.columns([1, 1])
-    with col_check:
-        if st.button("Check Key", use_container_width=True, key="btn_check_key"):
-            if st.session_state.gemini_key:
-                with st.spinner("Checking…"):
-                    ok = check_api_key(st.session_state.gemini_key)
-                st.session_state.api_key_status = "ok" if ok else "err"
-            else:
-                st.warning("Paste your key first!")
-    with col_link:
-        st.markdown('[Get free key ↗](https://aistudio.google.com/app/apikey)')
-
-    if st.session_state.api_key_status == "ok":
-        st.success("API key valid!")
-    elif st.session_state.api_key_status == "err":
-        st.error("Invalid key — try another")
-
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    # ── Google Search ───────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("globe",11,"#58a6ff")}&nbsp; Google Search</div>', unsafe_allow_html=True)
-    google_on = st.toggle(
-        "Enable Google Search", value=st.session_state.google_search,
-        key="google_toggle",
-        help="When ON, AI may search the web if notes don't have the answer"
-    )
-    if google_on != st.session_state.google_search:
-        st.session_state.google_search = google_on
-        st.rerun()
-    if st.session_state.google_search:
-        st.caption("Google may enhance your answers — results may vary")
-
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    # ── Subject tree ─────────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("folder",11,"#58a6ff")}&nbsp; Select Subject</div>', unsafe_allow_html=True)
-
-    try:
-        with st.spinner("Loading subjects…"):
-            structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
-    except Exception as e:
-        st.error(f"Drive API error: {e}")
-        st.stop()
-
-    selected_id = selected_name = None
-
-    for yi, (year_name, sems) in enumerate(structure.items()):
-        with st.expander(f"{year_name}", expanded=(yi == 0)):
-            for si, (sem_name, subjects) in enumerate(sems.items()):
-                with st.expander(f"{sem_name}", expanded=False):
-                    for subj_name, subj_id in subjects.items():
-                        is_sel = subj_id == st.session_state.current_subject_id
-                        label = f"{'✓ ' if is_sel else ''}{subj_name}"
-                        if st.button(label, key=f"subj_{subj_id}", use_container_width=True):
-                            selected_id, selected_name = subj_id, subj_name
-
-    if selected_id and selected_id != st.session_state.current_subject_id:
-        st.session_state.current_subject_id = selected_id
-        st.session_state.subject_name = selected_name
-        st.session_state.docs = {}
-        st.session_state.messages = []
-        st.session_state.greeting_shown = False
-        st.rerun()
-
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    # ── Load / New Chat ──────────────────────────────────────────────────────
-    if st.session_state.current_subject_id:
-        st.markdown(f'<div class="sb-subject-pill">{ico("folder",12,"#9ecfff")}&nbsp; {st.session_state.subject_name}</div>', unsafe_allow_html=True)
-        if st.button("Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
-            with st.spinner(f"Loading docs for {st.session_state.subject_name}…"):
-                st.session_state.docs = load_subject_docs(st.session_state.current_subject_id, DRIVE_API_KEY)
-                st.session_state.messages = []
-                st.session_state.greeting_shown = False
-            st.rerun()
-
-    if st.session_state.messages:
-        if st.button("New Chat", use_container_width=True, key="btn_new_chat"):
-            st.session_state.messages = []
-            st.session_state.greeting_shown = False
-            st.rerun()
-
-    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
-
-    # ── Admin ────────────────────────────────────────────────────────────────
-    if not st.session_state.admin_logged_in:
-        if st.button("Admin Login", use_container_width=True, key="btn_admin"):
-            st.session_state.show_admin = not st.session_state.show_admin
-
-        if st.session_state.show_admin:
-            with st.form("admin_login_form"):
-                email_in = st.text_input("Email", placeholder="admin@aana.lk")
-                pass_in  = st.text_input("Password", type="password", placeholder="Password")
-                submitted = st.form_submit_button("Login", use_container_width=True)
-                if submitted:
-                    h = hashlib.sha256(pass_in.encode()).hexdigest()
-                    if email_in == ADMIN_EMAIL and h == ADMIN_PASS_HASH:
-                        st.session_state.admin_logged_in = True
-                        st.session_state.show_admin = False
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials")
-    else:
-        st.markdown(f'<div class="sb-admin-on">{ico("settings",12,"#e8c840")}&nbsp; Admin Mode</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Free API Keys</div>', unsafe_allow_html=True)
-
-        for i, k in enumerate(st.session_state.free_api_keys):
-            c1, c2 = st.columns([4, 1])
-            with c1:
-                new_val = st.text_input(f"Key {i+1}", value=k, key=f"adm_key_{i}", label_visibility="collapsed")
-                if new_val != k:
-                    st.session_state.free_api_keys[i] = new_val
-            with c2:
-                if st.button("✕", key=f"adm_del_{i}", help="Remove"):
-                    st.session_state.free_api_keys.pop(i)
-                    st.rerun()
-
-        if st.button("Add API Key", use_container_width=True, key="btn_add_key"):
-            st.session_state.free_api_keys.append("")
-            st.rerun()
-
-        if st.button("Logout Admin", use_container_width=True, key="btn_admin_logout"):
-            st.session_state.admin_logged_in = False
-            st.rerun()
-
-    st.markdown('<div class="sb-footer">Docs refresh every 5 min · Drop new files in Drive anytime</div>', unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-#   MAIN CONTENT WRAPPER — ensures footer stays at bottom
-# ══════════════════════════════════════════════════════════════════════════════
-docs      = st.session_state.docs
-subj_name = st.session_state.subject_name
-
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
-if not docs:
-    if not st.session_state.current_subject_id:
-        st.markdown(f"""
-        <div class="hero-wrap">
-          <div class="hero-avatar-wrap">
-            <img src="{ADMIN_IMG_SRC}" alt="AI ආනා" class="hero-avatar">
-          </div>
-          <div class="hero-title">ආනාගේ <span class="hero-ai">AI</span></div>
-          <div class="hero-sub">ඔබේ lecture notes ගැන ඕනෙ ප්‍රශ්නයක් අහන්නකෝ..!</div>
-          <div class="hero-steps">
-            <div class="hero-step">
-              <span class="hero-step-num">1</span>
-              <span>API Key paste කරන්න</span>
-            </div>
-            <div class="hero-step">
-              <span class="hero-step-num">2</span>
-              <span>Subject select කරන්න</span>
-            </div>
-            <div class="hero-step">
-              <span class="hero-step-num">3</span>
-              <span>Load කරලා අහන්න</span>
-            </div>
-          </div>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown(f"""
-        <div class="load-banner">
-          <div class="lb-icon-wrap">{ico("download", 28, "#1b3568")}</div>
-          <div class="lb-title">Load Subject Docs</div>
-          <div class="lb-sub"><strong>{subj_name}</strong> select කරලා තියෙනවා.<br>
-          Sidebar එකේ <strong>Load Subject Docs</strong> button එක press කරන්නකෝ!</div>
-        </div>
-        """, unsafe_allow_html=True)
-else:
-    doc_names = list(docs.keys())
-    gsearch_badge = f'&nbsp;{ico("globe",11,"#16a34a")}&nbsp;<span class="gsearch-badge">Google ON</span>' if st.session_state.google_search else ""
-    tags_html = "&nbsp;".join(f'<span class="doc-tag">{n}</span>' for n in doc_names[:4])
-    if len(doc_names) > 4:
-        tags_html += f' <span class="doc-tag">+{len(doc_names)-4} more</span>'
-    st.markdown(f"""
-    <div class="status-bar">
-      <span>{ico("folder",13,"#1b3568")}&nbsp;<strong>{subj_name}</strong></span>
-      <span class="status-sep">·</span>
-      <span>{len(doc_names)} doc{'s' if len(doc_names)!=1 else ''}</span>
-      <span class="status-sep">·</span>
-      {tags_html}{gsearch_badge}
-    </div>
-    """, unsafe_allow_html=True)
-
-    if not st.session_state.greeting_shown:
-        greeting = (
-            "හෙලෝ සුද්දා, කෝමද, සැපේද ඉන්නේ..? 😊\n\n"
-            f"You can now ask any question regarding the uploaded notes of **{subj_name}**. "
-            "Can't find your answer? Enable Google Search in the sidebar!"
-        )
-        st.session_state.messages = [{"role": "assistant", "content": greeting, "is_greeting": True}]
-        st.session_state.greeting_shown = True
-
-    for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-        else:
-            # Use the admin image as avatar (circle with glow via CSS)
-            with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
-                st.markdown(msg["content"])
-                if (not st.session_state.google_search
-                        and not msg.get("is_greeting")
-                        and any(x in msg["content"].lower() for x in [
-                            "not in the documents", "not found", "cannot find",
-                            "no information", "document doesn't", "isn't in"
-                        ])):
-                    if st.button("🌐 Enable Google Search for a better answer",
-                                 key=f"gs_suggest_{msg['content'][:20]}"):
-                        st.session_state.google_search = True
-                        st.rerun()
-
-    if question := st.chat_input(f"Ask about {subj_name}…"):
-        key = st.session_state.gemini_key
-        if not key:
-            st.error("Sidebar එකේ API key paste කරන්න!")
-        else:
-            st.session_state.messages.append({"role": "user", "content": question})
-            with st.chat_message("user"):
-                st.markdown(question)
-            with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
-                if st.session_state.google_search:
-                    st.caption("🌐 Google Search enabled — may enhance your answer")
-                with st.spinner("AI ආනා thinking…"):
-                    try:
-                        answer = ask_gemini(key, question, docs, st.session_state.google_search)
-                        track_usage(key)
-                        st.session_state.messages.append({"role": "assistant", "content": answer})
-                        st.markdown(answer)
-                        st.rerun()
-                    except Exception as e:
-                        err = str(e)
-                        if "API_KEY_INVALID" in err or "invalid" in err.lower():
-                            st.error("Invalid Gemini API key. Get a free one at aistudio.google.com")
-                            st.session_state.api_key_status = "err"
-                        else:
-                            st.error(f"Gemini error: {err}")
-
-st.markdown('</div>', unsafe_allow_html=True)  # close main-content
-
-# ── Footer ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="aana-footer">
-  <div class="ftr-inner">
-    <div class="ftr-copy">©2025 All Rights Reserved</div>
-    <div class="ftr-dev">
-      Developed by&nbsp;<span class="ftr-heart">❤</span>&nbsp;<a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+/* Mobile */
+@media (max-width: 768px) {
+  .block-container { padding: 0 1rem 4rem !important; }
+  .aana-header {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    width: calc(100% + 2rem);
+    padding: 0.5rem 1rem;
+  }
+  .hdr-shimmer {
+    margin-left: -1rem;
+    margin-right: -1rem;
+    width: calc(100% + 2rem);
+  }
+  .hero-title { font-size: 1.5rem; }
+  [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
+    max-width: 88% !important;
+  }
+  [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
+    max-width: 92% !important;
+  }
+}
