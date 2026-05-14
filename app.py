@@ -155,7 +155,7 @@ def extract_text(file_bytes, filename):
     except Exception as e:
         return f"[Could not read {filename}: {e}]"
 
-@st.cache_data(show_spinner=False, ttl=600)
+@st.cache_data(show_spinner=False, ttl=1800)  # 30 min cache
 def get_structure(root_id, api_key):
     tree = {}
     years, _ = list_folder(root_id, api_key)
@@ -169,7 +169,7 @@ def get_structure(root_id, api_key):
                 tree[year_name][sem_name][subj_name] = subj_id
     return tree
 
-@st.cache_data(show_spinner=False, ttl=300)
+@st.cache_data(show_spinner=False, ttl=600)  # 10 min cache
 def load_subject_docs(subject_folder_id, api_key):
     SUPPORTED = {".pdf", ".docx", ".doc", ".txt", ".md", ".csv",
                  ".json", ".pptx", ".xlsx", ".xls"}
@@ -294,6 +294,25 @@ footer { display: none !important; }
 button[title="View app in Streamlit Community Cloud"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
+/* Force sidebar always visible — belt AND suspenders */
+section[data-testid="stSidebar"] {
+  display: flex !important;
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  min-width: 252px !important;
+  max-width: 252px !important;
+  width: 252px !important;
+}
+section[data-testid="stSidebar"][style*="display: none"],
+section[data-testid="stSidebar"][style*="display:none"] {
+  display: flex !important;
+}
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="stSidebarCollapseButton"] {
+  display: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -419,7 +438,8 @@ with st.sidebar:
     st.markdown(f'<div class="sb-label">{ico("folder",11,"#58a6ff")}&nbsp; Select Subject</div>', unsafe_allow_html=True)
 
     try:
-        structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
+        with st.spinner("Loading subjects…"):
+            structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
     except Exception as e:
         st.error(f"Drive API error: {e}")
         st.stop()
