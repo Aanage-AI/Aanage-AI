@@ -631,3 +631,43 @@ st.markdown("""
   </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────────────────────
+# FORCE DARK TEXT IN ASSISTANT MESSAGES + CIRCLE AVATARS (JS)
+# ──────────────────────────────────────────────────────────────
+st.markdown("""
+<script>
+function fixAssistantMessages() {
+    // Select all assistant message content divs
+    const assistantBubbles = document.querySelectorAll('[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"]');
+    assistantBubbles.forEach(bubble => {
+        bubble.style.color = '#1e1e2a';  // dark text
+        bubble.style.background = '#ffffff';  // white background
+        bubble.style.border = '1px solid #e2ddd4';
+        // Force all children to have dark text
+        const allChildren = bubble.querySelectorAll('*');
+        allChildren.forEach(child => {
+            child.style.color = '#1e1e2a';
+        });
+    });
+    
+    // Fix assistant avatars to perfect circle with glow
+    const assistantAvatars = document.querySelectorAll('[data-testid="stChatMessage"][data-role="assistant"] img, [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageAvatarIcon"]');
+    assistantAvatars.forEach(avatar => {
+        avatar.style.borderRadius = '50%';
+        avatar.style.width = '36px';
+        avatar.style.height = '36px';
+        avatar.style.objectFit = 'cover';
+        avatar.style.border = '2px solid rgba(27,53,104,0.3)';
+        avatar.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.2), 0 0 12px rgba(59,130,246,0.4)';
+    });
+}
+
+// Run on load
+fixAssistantMessages();
+
+// Also run after Streamlit updates (every rerun)
+const observer = new MutationObserver(fixAssistantMessages);
+observer.observe(document.body, { childList: true, subtree: true });
+</script>
+""", unsafe_allow_html=True)
