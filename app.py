@@ -1,20 +1,17 @@
 """
 ආනාගේ AI — StudyMate
-Rebuilt with native Streamlit widgets only — no broken JS/HTML tricks.
-All interactivity via st.session_state + Streamlit native components.
+Premium rebuild — SVG icons, sticky footer, sidebar always visible.
 """
 
 import io
 import re
 import base64
 import hashlib
-import json
 import datetime
 from pathlib import Path
 
 import requests
 import streamlit as st
-
 import PyPDF2
 import docx
 import google.generativeai as genai
@@ -25,7 +22,7 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={}
+    menu_items={},
 )
 
 # ── Load external CSS ──────────────────────────────────────────────────────────
@@ -58,16 +55,12 @@ DEFAULTS = {
     "greeting_shown": False,
     "show_free_keys": False,
     "show_admin": False,
-    "show_about": False,
-    "admin_email_input": "",
-    "admin_pass_input": "",
     "admin_login_error": False,
 }
 for k, v in DEFAULTS.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Reset daily usage counter
 today = str(datetime.date.today())
 if st.session_state.usage_date != today:
     st.session_state.api_usage_today = {}
@@ -260,8 +253,35 @@ def img_b64(path_str):
 ADMIN_IMG_PATH = Path(__file__).parent / "assets" / "admin" / "admin.jpg"
 ADMIN_IMG_SRC  = img_b64(ADMIN_IMG_PATH) or "https://ui-avatars.com/api/?name=AI&background=162b56&color=9ecfff&size=90"
 
+# ── SVG icon helpers ───────────────────────────────────────────────────────────
+def ico(path, size=14, color="currentColor"):
+    """Return inline SVG for Lucide-style icons."""
+    icons = {
+        "key":      '<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>', 
+        "check":    '<path d="M20 6 9 17l-5-5"/>',
+        "search":   '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+        "folder":   '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/>',
+        "book":     '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>', 
+        "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+        "chat":     '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+        "lock":     '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+        "unlock":   '<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+        "trash":    '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+        "plus":     '<path d="M5 12h14"/><path d="M12 5v14"/>',
+        "copy":     '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+        "globe":    '<circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>',
+        "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+        "video":    '<polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/>',
+        "star":     '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+    }
+    svg_content = icons.get(path, '<circle cx="12" cy="12" r="5"/>')
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_content}</svg>'
+
+def sb_btn_label(icon_name, text, color="rgba(184,196,216,.8)"):
+    return f'{ico(icon_name, 13, color)}&nbsp;&nbsp;{text}'
+
 # ══════════════════════════════════════════════════════════════════════════════
-#   HIDE STREAMLIT CHROME (manage app, toolbar, deploy button, etc.)
+#   HIDE STREAMLIT CHROME
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -273,21 +293,27 @@ footer { display: none !important; }
 .stDeployButton { display: none !important; }
 button[title="View app in Streamlit Community Cloud"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
+[data-testid="stDecoration"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   HEADER  (pure HTML for visual only — no JS interactivity needed here)
+#   HEADER
 # ══════════════════════════════════════════════════════════════════════════════
-google_badge = "🟢 Google ON" if st.session_state.google_search else "⚪ Google OFF"
-admin_label  = "🔓 Logged In" if st.session_state.admin_logged_in else "🔐 Admin"
+google_active = st.session_state.google_search
+admin_in      = st.session_state.admin_logged_in
+
+google_icon = ico("globe", 12, "#4ade80" if google_active else "rgba(255,255,255,.35)")
+google_txt  = "Google ON" if google_active else "Google OFF"
+admin_icon  = ico("unlock" if admin_in else "lock", 12, "#e8c840")
+admin_txt   = "Logged In" if admin_in else "Admin"
 
 st.markdown(f"""
 <div class="aana-header">
   <div class="hdr-left">
     <div class="hdr-avatar-wrap">
       <img src="{ADMIN_IMG_SRC}" alt="ආනා" class="hdr-avatar"
-           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=0f1628&color=e8c840&size=38'">
+           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=0f1628&color=3b82f6&size=38'">
     </div>
     <div class="hdr-title-wrap">
       <div class="hdr-brand">
@@ -298,8 +324,8 @@ st.markdown(f"""
     </div>
   </div>
   <div class="hdr-right">
-    <span class="hdr-pill hdr-pill-google {'active' if st.session_state.google_search else ''}">{google_badge}</span>
-    <span class="hdr-pill hdr-pill-admin">{admin_label}</span>
+    <span class="hdr-pill hdr-pill-google {'active' if google_active else ''}">{google_icon}&nbsp;{google_txt}</span>
+    <span class="hdr-pill hdr-pill-admin">{admin_icon}&nbsp;{admin_txt}</span>
   </div>
 </div>
 <div class="hdr-shimmer"></div>
@@ -313,52 +339,43 @@ if not DRIVE_API_KEY or not ROOT_FOLDER_ID:
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   SIDEBAR — all native Streamlit widgets
+#   SIDEBAR
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
     st.markdown('<div class="sb-brand"><span class="sb-brand-sinhala">ආනාගේ</span><span class="sb-brand-ai">&nbsp;AI</span></div>', unsafe_allow_html=True)
 
-    # ── Free API keys hint ──────────────────────────────────────────────────
-    if st.button("🔑 තාමත් API Key එකක් නැද්ද..?", use_container_width=True, key="btn_freekeys"):
+    # ── Free API keys ───────────────────────────────────────────────────────
+    st.markdown(f'<div class="sb-section-btn" id="freekeys-trigger">{ico("key",13,"#e8c840")}&nbsp;&nbsp;<span>API Key නැද්ද..?</span></div>', unsafe_allow_html=True)
+    if st.button("API Key නැද්ද..?", use_container_width=True, key="btn_freekeys"):
         st.session_state.show_free_keys = not st.session_state.show_free_keys
 
     if st.session_state.show_free_keys:
-        with st.container():
-            st.markdown('<div class="fk-warn-box">', unsafe_allow_html=True)
-            st.markdown("""
-**මෙවුවා හැමෝම use කරනවා limit වැදිලා ඇති සමහරවිට 😠**
+        st.markdown('<div class="fk-warn-box">', unsafe_allow_html=True)
+        st.markdown("**මෙවුවා හැමෝම use කරනවා — limit වැදිලා ඇති** 😤\n\nVideo බලලා තමන්ගේ key හදාගනිං:")
+        st.markdown(f'[{ico("video",12,"#58a6ff")}&nbsp; How to get your free API key](https://youtu.be/YOUR_VIDEO_LINK_HERE)', unsafe_allow_html=False)
+        free_keys = st.session_state.free_api_keys
+        if free_keys:
+            for k in free_keys:
+                masked = k[:12] + "…" + k[-4:] if len(k) > 18 else k
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.code(masked, language=None)
+                with col2:
+                    if st.button("", key=f"copy_{k[:8]}", help="Copy key"):
+                        st.write(f"`{k}`")
+                st.caption(f"Used {get_usage(k)}× today")
+        else:
+            st.caption("No free keys yet. Admin can add them.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-Video එක බලලා තමන්ටම කියලා එකක් හදාගනිං API හිඟන්නා 😤
-""")
-            st.markdown(f'📺 [How to get your free API key](https://youtu.be/YOUR_VIDEO_LINK_HERE)', unsafe_allow_html=False)
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
-            free_keys = st.session_state.free_api_keys
-            if free_keys:
-                for k in free_keys:
-                    usage = get_usage(k)
-                    masked = k[:12] + "…" + k[-4:] if len(k) > 18 else k
-                    col1, col2 = st.columns([4, 1])
-                    with col1:
-                        st.code(masked, language=None)
-                    with col2:
-                        if st.button("📋", key=f"copy_{k[:8]}", help="Copy key"):
-                            st.write(f"`{k}`")
-                    st.caption(f"Used {usage}× today")
-            else:
-                st.caption("No free keys added yet. Admin can add them.")
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # ── API Key section ─────────────────────────────────────────────────────
-    st.markdown('<div class="sb-label">🔑 Gemini API Key</div>', unsafe_allow_html=True)
+    # ── API Key ─────────────────────────────────────────────────────────────
+    st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Gemini API Key</div>', unsafe_allow_html=True)
     api_key_input = st.text_input(
-        "API Key",
-        value=st.session_state.gemini_key,
-        type="password",
-        placeholder="AIza...",
-        label_visibility="collapsed",
-        key="api_key_field"
+        "API Key", value=st.session_state.gemini_key,
+        type="password", placeholder="AIza…",
+        label_visibility="collapsed", key="api_key_field"
     )
     if api_key_input != st.session_state.gemini_key:
         st.session_state.gemini_key = api_key_input
@@ -366,7 +383,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
 
     col_check, col_link = st.columns([1, 1])
     with col_check:
-        if st.button("✓ Check Key", use_container_width=True, key="btn_check_key"):
+        if st.button("Check Key", use_container_width=True, key="btn_check_key"):
             if st.session_state.gemini_key:
                 with st.spinner("Checking…"):
                     ok = check_api_key(st.session_state.gemini_key)
@@ -374,20 +391,19 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
             else:
                 st.warning("Paste your key first!")
     with col_link:
-        st.markdown('[Get free key ↗](https://aistudio.google.com/app/apikey)', unsafe_allow_html=False)
+        st.markdown('[Get free key ↗](https://aistudio.google.com/app/apikey)')
 
     if st.session_state.api_key_status == "ok":
-        st.success("✅ API key valid!")
+        st.success("API key valid!")
     elif st.session_state.api_key_status == "err":
-        st.error("❌ Invalid key — try another")
+        st.error("Invalid key — try another")
 
-    st.markdown("---")
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
-    # ── Google Search toggle ────────────────────────────────────────────────
-    st.markdown('<div class="sb-label">🌐 Google Search</div>', unsafe_allow_html=True)
+    # ── Google Search ───────────────────────────────────────────────────────
+    st.markdown(f'<div class="sb-label">{ico("globe",11,"#58a6ff")}&nbsp; Google Search</div>', unsafe_allow_html=True)
     google_on = st.toggle(
-        "Enable Google Search",
-        value=st.session_state.google_search,
+        "Enable Google Search", value=st.session_state.google_search,
         key="google_toggle",
         help="When ON, AI may search the web if notes don't have the answer"
     )
@@ -395,12 +411,12 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
         st.session_state.google_search = google_on
         st.rerun()
     if st.session_state.google_search:
-        st.caption("🌐 Google may enhance your answers — results may vary")
+        st.caption("Google may enhance your answers — results may vary")
 
-    st.markdown("---")
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
-    # ── Subject tree ────────────────────────────────────────────────────────
-    st.markdown('<div class="sb-label">📂 Select Subject</div>', unsafe_allow_html=True)
+    # ── Subject tree ─────────────────────────────────────────────────────────
+    st.markdown(f'<div class="sb-label">{ico("folder",11,"#58a6ff")}&nbsp; Select Subject</div>', unsafe_allow_html=True)
 
     try:
         structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
@@ -408,21 +424,18 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
         st.error(f"Drive API error: {e}")
         st.stop()
 
-    selected_id   = None
-    selected_name = None
+    selected_id = selected_name = None
 
     for yi, (year_name, sems) in enumerate(structure.items()):
-        with st.expander(f"🎓 {year_name}", expanded=(yi == 0)):
+        with st.expander(f"{year_name}", expanded=(yi == 0)):
             for si, (sem_name, subjects) in enumerate(sems.items()):
-                with st.expander(f"📖 {sem_name}", expanded=False):
+                with st.expander(f"{sem_name}", expanded=False):
                     for subj_name, subj_id in subjects.items():
-                        is_selected = subj_id == st.session_state.current_subject_id
-                        btn_label = f"{'✅ ' if is_selected else ''}{subj_name}"
-                        if st.button(btn_label, key=f"subj_{subj_id}", use_container_width=True):
-                            selected_id   = subj_id
-                            selected_name = subj_name
+                        is_sel = subj_id == st.session_state.current_subject_id
+                        label = f"{'✓ ' if is_sel else ''}{subj_name}"
+                        if st.button(label, key=f"subj_{subj_id}", use_container_width=True):
+                            selected_id, selected_name = subj_id, subj_name
 
-    # Handle subject selection
     if selected_id and selected_id != st.session_state.current_subject_id:
         st.session_state.current_subject_id = selected_id
         st.session_state.subject_name = selected_name
@@ -431,32 +444,29 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
         st.session_state.greeting_shown = False
         st.rerun()
 
-    st.markdown("---")
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
-    # ── Load / New Chat buttons ─────────────────────────────────────────────
+    # ── Load / New Chat ──────────────────────────────────────────────────────
     if st.session_state.current_subject_id:
-        st.markdown(f'<div class="sb-subject-pill">📂 {st.session_state.subject_name}</div>', unsafe_allow_html=True)
-
-        if st.button("⬇️ Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
+        st.markdown(f'<div class="sb-subject-pill">{ico("folder",12,"#9ecfff")}&nbsp; {st.session_state.subject_name}</div>', unsafe_allow_html=True)
+        if st.button("Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
             with st.spinner(f"Loading docs for {st.session_state.subject_name}…"):
-                st.session_state.docs = load_subject_docs(
-                    st.session_state.current_subject_id, DRIVE_API_KEY
-                )
+                st.session_state.docs = load_subject_docs(st.session_state.current_subject_id, DRIVE_API_KEY)
                 st.session_state.messages = []
                 st.session_state.greeting_shown = False
             st.rerun()
 
     if st.session_state.messages:
-        if st.button("💬 New Chat", use_container_width=True, key="btn_new_chat"):
+        if st.button("New Chat", use_container_width=True, key="btn_new_chat"):
             st.session_state.messages = []
             st.session_state.greeting_shown = False
             st.rerun()
 
-    st.markdown("---")
+    st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
-    # ── Admin section ───────────────────────────────────────────────────────
+    # ── Admin ────────────────────────────────────────────────────────────────
     if not st.session_state.admin_logged_in:
-        if st.button("🔐 Admin Login", use_container_width=True, key="btn_admin"):
+        if st.button("Admin Login", use_container_width=True, key="btn_admin"):
             st.session_state.show_admin = not st.session_state.show_admin
 
         if st.session_state.show_admin:
@@ -471,10 +481,10 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
                         st.session_state.show_admin = False
                         st.rerun()
                     else:
-                        st.error("❌ Invalid credentials")
+                        st.error("Invalid credentials")
     else:
-        st.markdown('<div class="sb-admin-on">⚙️ Admin Mode</div>', unsafe_allow_html=True)
-        st.markdown('<div class="sb-label">Free API Keys</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sb-admin-on">{ico("settings",12,"#e8c840")}&nbsp; Admin Mode</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Free API Keys</div>', unsafe_allow_html=True)
 
         for i, k in enumerate(st.session_state.free_api_keys):
             c1, c2 = st.columns([4, 1])
@@ -483,83 +493,87 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
                 if new_val != k:
                     st.session_state.free_api_keys[i] = new_val
             with c2:
-                if st.button("🗑️", key=f"adm_del_{i}", help="Remove"):
+                if st.button("✕", key=f"adm_del_{i}", help="Remove"):
                     st.session_state.free_api_keys.pop(i)
                     st.rerun()
 
-        if st.button("➕ Add API Key", use_container_width=True, key="btn_add_key"):
+        if st.button("Add API Key", use_container_width=True, key="btn_add_key"):
             st.session_state.free_api_keys.append("")
             st.rerun()
 
-        if st.button("🔓 Logout Admin", use_container_width=True, key="btn_admin_logout"):
+        if st.button("Logout Admin", use_container_width=True, key="btn_admin_logout"):
             st.session_state.admin_logged_in = False
             st.rerun()
 
-    st.markdown('<div class="sb-footer">Docs refresh every 5 min.<br>Drop new files in Drive anytime.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-footer">Docs refresh every 5 min · Drop new files in Drive anytime</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   MAIN CHAT AREA
+#   MAIN CONTENT WRAPPER — ensures footer stays at bottom
 # ══════════════════════════════════════════════════════════════════════════════
 docs      = st.session_state.docs
 subj_name = st.session_state.subject_name
 
+st.markdown('<div class="main-content">', unsafe_allow_html=True)
+
 if not docs:
     if not st.session_state.current_subject_id:
-        # Landing hero
         st.markdown(f"""
         <div class="hero-wrap">
           <div class="hero-avatar-wrap">
             <img src="{ADMIN_IMG_SRC}" alt="AI ආනා" class="hero-avatar">
           </div>
           <div class="hero-title">ආනාගේ <span class="hero-ai">AI</span></div>
-          <div class="hero-sub">ඔබේ lecture notes ගැන ඕනෙ ප්‍රශ්නයක් අහන්නකෝ..! 🎓</div>
+          <div class="hero-sub">ඔබේ lecture notes ගැන ඕනෙ ප්‍රශ්නයක් අහන්නකෝ..!</div>
           <div class="hero-steps">
-            <div class="hero-step"><span class="hero-step-num">1</span>API Key paste කරන්න</div>
-            <div class="hero-step"><span class="hero-step-num">2</span>Subject select කරන්න</div>
-            <div class="hero-step"><span class="hero-step-num">3</span>Load කරලා අහන්න</div>
+            <div class="hero-step">
+              <span class="hero-step-num">1</span>
+              <span>API Key paste කරන්න</span>
+            </div>
+            <div class="hero-step">
+              <span class="hero-step-num">2</span>
+              <span>Subject select කරන්න</span>
+            </div>
+            <div class="hero-step">
+              <span class="hero-step-num">3</span>
+              <span>Load කරලා අහන්න</span>
+            </div>
           </div>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
         <div class="load-banner">
-          <div class="lb-icon">📂</div>
+          <div class="lb-icon-wrap">{ico("download", 28, "#1b3568")}</div>
           <div class="lb-title">Load Subject Docs</div>
           <div class="lb-sub"><strong>{subj_name}</strong> select කරලා තියෙනවා.<br>
-          Sidebar එකේ <strong>⬇️ Load Subject Docs</strong> button එක press කරන්නකෝ!</div>
+          Sidebar එකේ <strong>Load Subject Docs</strong> button එක press කරන්නකෝ!</div>
         </div>
         """, unsafe_allow_html=True)
 else:
-    # Status bar
     doc_names = list(docs.keys())
-    gsearch_badge = " &nbsp;🌐 Google ON" if st.session_state.google_search else ""
-    tags_html = " &nbsp;".join(
-        f'<span class="doc-tag">{n}</span>' for n in doc_names[:4]
-    )
+    gsearch_badge = f'&nbsp;{ico("globe",11,"#16a34a")}&nbsp;<span class="gsearch-badge">Google ON</span>' if st.session_state.google_search else ""
+    tags_html = "&nbsp;".join(f'<span class="doc-tag">{n}</span>' for n in doc_names[:4])
     if len(doc_names) > 4:
         tags_html += f' <span class="doc-tag">+{len(doc_names)-4} more</span>'
     st.markdown(f"""
     <div class="status-bar">
-      <span>📂 <strong>{subj_name}</strong></span>
-      <span class="status-sep">|</span>
+      <span>{ico("folder",13,"#1b3568")}&nbsp;<strong>{subj_name}</strong></span>
+      <span class="status-sep">·</span>
       <span>{len(doc_names)} doc{'s' if len(doc_names)!=1 else ''}</span>
-      <span class="status-sep">|</span>
-      {tags_html}
-      <span class="gsearch-badge">{gsearch_badge}</span>
+      <span class="status-sep">·</span>
+      {tags_html}{gsearch_badge}
     </div>
     """, unsafe_allow_html=True)
 
-    # Greeting
     if not st.session_state.greeting_shown:
         greeting = (
             "හෙලෝ සුද්දා, කෝමද, සැපේද ඉන්නේ..? 😊\n\n"
-            f"You can now ask any question regarding the uploaded notes of **{subj_name}**.. "
-            "Can't find your answer? Simply enable Google Search 🌐 in the sidebar!"
+            f"You can now ask any question regarding the uploaded notes of **{subj_name}**. "
+            "Can't find your answer? Enable Google Search in the sidebar!"
         )
         st.session_state.messages = [{"role": "assistant", "content": greeting, "is_greeting": True}]
         st.session_state.greeting_shown = True
 
-    # Render messages
     for msg in st.session_state.messages:
         if msg["role"] == "user":
             with st.chat_message("user"):
@@ -567,40 +581,29 @@ else:
         else:
             with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
                 st.markdown(msg["content"])
-
-                # Suggest Google Search if answer not found
                 if (not st.session_state.google_search
                         and not msg.get("is_greeting")
                         and any(x in msg["content"].lower() for x in [
                             "not in the documents", "not found", "cannot find",
                             "no information", "document doesn't", "isn't in"
                         ])):
-                    if st.button("🌐 Enable Google Search for a better answer",
+                    if st.button("Enable Google Search for a better answer",
                                  key=f"gs_suggest_{msg['content'][:20]}"):
                         st.session_state.google_search = True
                         st.rerun()
 
-    # Display AI name below avatar
-    st.markdown(f"""
-    <style>
-    [data-testid="stChatMessageContent"] + * {{ font-size: .7rem; color: #58a6ff; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-    # Chat input
     if question := st.chat_input(f"Ask about {subj_name}…"):
         key = st.session_state.gemini_key
         if not key:
-            st.error("⚠️ Sidebar-ලා API key paste කරන්නකෝ first!")
+            st.error("Sidebar-ලා API key paste කරන්නකෝ first!")
         else:
             st.session_state.messages.append({"role": "user", "content": question})
             with st.chat_message("user"):
                 st.markdown(question)
-
             with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
                 if st.session_state.google_search:
-                    st.caption("🌐 Google Search enabled — may enhance your answer")
-                with st.spinner("AI ආනා thinking… 🤔"):
+                    st.caption("Google Search enabled — may enhance your answer")
+                with st.spinner("AI ආනා thinking…"):
                     try:
                         answer = ask_gemini(key, question, docs, st.session_state.google_search)
                         track_usage(key)
@@ -610,17 +613,21 @@ else:
                     except Exception as e:
                         err = str(e)
                         if "API_KEY_INVALID" in err or "invalid" in err.lower():
-                            st.error("❌ Invalid Gemini API key. Get a free one at aistudio.google.com")
+                            st.error("Invalid Gemini API key. Get a free one at aistudio.google.com")
                             st.session_state.api_key_status = "err"
                         else:
                             st.error(f"Gemini error: {err}")
 
+st.markdown('</div>', unsafe_allow_html=True)  # close main-content
+
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="aana-footer">
-  <div class="ftr-copy">©2025 All Rights Reserved</div>
-  <div class="ftr-dev">
-    Developed by&nbsp;<span class="ftr-heart">❤</span>&nbsp;<a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
+  <div class="ftr-inner">
+    <div class="ftr-copy">©2025 All Rights Reserved</div>
+    <div class="ftr-dev">
+      Developed by&nbsp;<span class="ftr-heart">❤</span>&nbsp;<a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
+    </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
