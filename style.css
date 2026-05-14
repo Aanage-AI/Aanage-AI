@@ -681,3 +681,33 @@ section[data-testid="stSidebar"] {
     max-width: 92% !important;
   }
 }
+
+/* ===== EXTREME FORCE: Assistant message text MUST be dark ===== */
+/* Target the message container */
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"],
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] *,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] p,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] span,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] li,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] div,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] strong,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] em {
+  color: #1e1e2a !important;
+}
+
+/* Force background of assistant bubble to white/light */
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageContent"] {
+  background: #ffffff !important;
+  border: 1px solid #e2ddd4 !important;
+}
+
+/* Fix assistant avatar - perfect circle */
+div[data-testid="stChatMessage"][data-role="assistant"] img,
+div[data-testid="stChatMessage"][data-role="assistant"] div[data-testid="stChatMessageAvatarIcon"] {
+  border-radius: 50% !important;
+  width: 36px !important;
+  height: 36px !important;
+  object-fit: cover !important;
+  border: 2px solid rgba(27,53,104,0.3) !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.2), 0 0 12px rgba(59,130,246,0.4) !important;
+}
