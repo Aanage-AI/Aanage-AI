@@ -25,6 +25,7 @@ st.set_page_config(
     page_icon="🎓",
     layout="wide",
     initial_sidebar_state="expanded",
+    menu_items={}
 )
 
 # ── Load external CSS ──────────────────────────────────────────────────────────
@@ -619,8 +620,7 @@ st.markdown("""
 <div class="aana-footer">
   <div class="ftr-copy">©2025 All Rights Reserved</div>
   <div class="ftr-dev">
-    Developed with <span class="ftr-heart">❤</span> by&nbsp;
-    <a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
+    Developed by&nbsp;<span class="ftr-heart">❤</span>&nbsp;<a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
   </div>
 </div>
 """, unsafe_allow_html=True)
