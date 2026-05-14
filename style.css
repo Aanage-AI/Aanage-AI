@@ -569,7 +569,7 @@ section[data-testid="stSidebar"] {
 /* Assistant message bubble */
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
   background: var(--ai-bg) !important;
-  color: var(--text) !important;
+  color: #000000 !important;
   border-radius: 4px 16px 16px 16px !important;
   padding: .7rem 1rem !important;
   font-size: .8rem !important;
@@ -585,7 +585,7 @@ section[data-testid="stSidebar"] {
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] li,
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] span,
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] div {
-  color: var(--text) !important;
+  color: #000000 !important;
 }
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] strong {
   color: var(--accent) !important;
@@ -620,7 +620,7 @@ section[data-testid="stSidebar"] {
 /* User message bubble */
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
   background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
-  color: #fff !important;
+  color: #cccccc !important;
   border-radius: 16px 4px 16px 16px !important;
   padding: .58rem .95rem !important;
   font-size: .8rem !important;
@@ -635,7 +635,7 @@ section[data-testid="stSidebar"] {
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] *,
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] p,
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] span {
-  color: #fff !important;
+  color: #cccccc !important;
 }
 
 /* ── Chat input ─────────────────────────────────────────── */
