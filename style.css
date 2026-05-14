@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════════
-   ආනාගේ AI — style.css  v3.0  (premium rebuild)
+   ආනාගේ AI — style.css  v4.0  (premium, sidebar-fixed)
    ═══════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=Noto+Sans+Sinhala:wght@400;700;900&family=Sora:wght@300;400;600;700&display=swap');
 
 :root {
-  --bg:          #eeeae3;
+  --bg:          #eceae4;
   --surface:     #faf8f5;
   --surface2:    #f3f0ea;
   --border:      #ddd8cf;
@@ -17,14 +17,15 @@
   --accent-glow: #2a4f9e;
   --gold:        #e8c840;
   --gold-glow:   #ffd700;
+  --blue:        #3b82f6;
+  --blue-glow:   #60a5fa;
   --green:       #16a34a;
   --red:         #dc2626;
-  --sidebar-bg:  #0f1628;
-  --sidebar2:    #141d35;
+  --sidebar-bg:  #0d1526;
+  --sidebar2:    #121e36;
   --user-bg:     #1b3568;
-  --user-text:   #ffffff;
   --ai-bg:       #ffffff;
-  --ai-border:   #ddd8cf;
+  --ai-border:   #e0dbd2;
   --chat-input:  #ffffff;
 }
 
@@ -35,6 +36,7 @@ html, body, [data-testid="stApp"] {
   background: var(--bg) !important;
   font-family: 'DM Sans', 'Noto Sans Sinhala', sans-serif !important;
   color: var(--text) !important;
+  height: 100% !important;
 }
 
 /* ── Hide ALL Streamlit chrome ───────────────────────────── */
@@ -53,47 +55,269 @@ button[title="View app in Streamlit Community Cloud"],
 [data-testid="stMain"] { padding: 0 !important; }
 [data-testid="stMain"] > div:first-child { padding-top: 0 !important; }
 .block-container {
-  padding: 0 2rem 3rem !important;
+  padding: 0 2rem 0 !important;
   max-width: 100% !important;
   width: 100% !important;
   margin: 0 !important;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Main content grows to push footer down ──────────────── */
+.main-content {
+  flex: 1;
+  min-height: calc(100vh - 200px);
+  padding-bottom: 1rem;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   HEADER — break out of container, truly full width
+   SIDEBAR — force always visible, premium dark
+   ═══════════════════════════════════════════════════════════ */
+
+/* The key fix: override Streamlit's translate-based hide */
+section[data-testid="stSidebar"] {
+  transform: translateX(0) !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: var(--sidebar-bg) !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
+  min-width: 252px !important;
+  max-width: 252px !important;
+  width: 252px !important;
+  transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
+}
+/* When user deliberately collapses it */
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  transform: translateX(-252px) !important;
+  min-width: 252px !important;
+}
+
+[data-testid="stSidebarContent"] {
+  padding: .7rem .8rem .8rem !important;
+  background: var(--sidebar-bg) !important;
+}
+
+[data-testid="stSidebar"] * { color: #b4c2d8 !important; }
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 { color: #e2e8f0 !important; }
+
+/* Re-open arrow */
+[data-testid="stSidebarCollapsedControl"] {
+  background: var(--sidebar-bg) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  border-left: none !important;
+  border-radius: 0 10px 10px 0 !important;
+  box-shadow: 4px 0 16px rgba(0,0,0,.4) !important;
+  top: 4.5rem !important;
+  visibility: visible !important;
+  display: flex !important;
+  z-index: 999 !important;
+}
+[data-testid="stSidebarCollapsedControl"] button svg {
+  color: var(--gold) !important;
+  fill: none !important;
+  stroke: var(--gold) !important;
+}
+
+/* ── Sidebar Brand ───────────────────────────────────────── */
+.sb-brand {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .25rem 0 .65rem;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  margin-bottom: .5rem;
+}
+.sb-brand-sinhala {
+  font-family: 'Noto Sans Sinhala', sans-serif;
+  font-size: 1rem; font-weight: 900; color: #fff !important;
+}
+.sb-brand-ai {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  color: var(--gold) !important;
+  text-shadow: 0 0 14px rgba(232,200,64,.55);
+}
+
+/* ── Section labels ──────────────────────────────────────── */
+.sb-label {
+  display: flex; align-items: center; gap: .3rem;
+  font-size: .59rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(88,150,255,.7) !important;
+  margin: .6rem 0 .24rem; padding-left: .05rem;
+}
+.sb-label svg { flex-shrink: 0; }
+
+/* ── Sidebar dividers ────────────────────────────────────── */
+.sb-divider {
+  height: 1px;
+  background: rgba(255,255,255,.055);
+  margin: .5rem 0;
+}
+
+/* ── Sidebar buttons ─────────────────────────────────────── */
+[data-testid="stSidebar"] .stButton > button {
+  background: rgba(255,255,255,.035) !important;
+  border: 1px solid rgba(255,255,255,.08) !important;
+  color: #c0cde0 !important; border-radius: 8px !important;
+  font-size: .73rem !important; font-weight: 500 !important;
+  padding: .35rem .75rem !important;
+  height: auto !important; min-height: 0 !important;
+  transition: all .18s ease !important;
+  font-family: 'DM Sans', sans-serif !important;
+  letter-spacing: .01em !important;
+}
+[data-testid="stSidebar"] .stButton > button:hover {
+  background: rgba(59,130,246,.12) !important;
+  border-color: rgba(59,130,246,.28) !important;
+  color: #dde6f5 !important;
+  transform: translateX(2px) !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+  background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
+  border: none !important; color: #fff !important; font-weight: 600 !important;
+  box-shadow: 0 2px 12px rgba(27,53,104,.4) !important;
+  letter-spacing: .02em !important;
+}
+[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
+  background: linear-gradient(135deg, #213f7c 0%, #3462b8 100%) !important;
+  box-shadow: 0 4px 18px rgba(42,79,158,.55) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ── Expanders ───────────────────────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+  background: rgba(255,255,255,.022) !important;
+  border: 1px solid rgba(255,255,255,.055) !important;
+  border-radius: 8px !important;
+  margin-bottom: .24rem !important;
+  overflow: hidden !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary {
+  font-size: .74rem !important; font-weight: 600 !important;
+  padding: .38rem .55rem !important; color: #b8c8de !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
+  color: #e8eef8 !important;
+  background: rgba(59,130,246,.07) !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] svg {
+  width: 12px !important; height: 12px !important;
+  color: rgba(255,255,255,.3) !important;
+}
+
+/* ── Inputs ──────────────────────────────────────────────── */
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] textarea {
+  background: rgba(255,255,255,.055) !important;
+  border: 1px solid rgba(255,255,255,.1) !important;
+  color: #e2e8f0 !important; border-radius: 8px !important;
+  font-size: .75rem !important; font-family: 'DM Sans', sans-serif !important;
+}
+[data-testid="stSidebar"] input::placeholder { color: rgba(255,255,255,.2) !important; }
+[data-testid="stSidebar"] input:focus {
+  border-color: rgba(59,130,246,.45) !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,.12) !important;
+}
+
+/* ── Toggle ──────────────────────────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stToggle"] label {
+  font-size: .73rem !important;
+}
+
+/* ── Caption ─────────────────────────────────────────────── */
+[data-testid="stSidebar"] small,
+[data-testid="stSidebar"] .stCaption,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+  font-size: .64rem !important; color: rgba(180,194,216,.4) !important;
+}
+
+/* ── Subject pill ────────────────────────────────────────── */
+.sb-subject-pill {
+  display: flex; align-items: center; gap: .38rem;
+  background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2);
+  border-radius: 8px; padding: .34rem .65rem;
+  font-size: .71rem; font-weight: 600; color: #9ecfff !important;
+  margin-bottom: .32rem; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Admin badge ─────────────────────────────────────────── */
+.sb-admin-on {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  background: rgba(232,200,64,.08); border: 1px solid rgba(232,200,64,.22);
+  border-radius: 8px; padding: .28rem .6rem;
+  font-size: .68rem; font-weight: 700; color: var(--gold) !important;
+  text-align: center; margin-bottom: .4rem; letter-spacing: .04em;
+}
+
+/* ── Free keys box ───────────────────────────────────────── */
+.fk-warn-box {
+  background: rgba(220,38,38,.06); border: 1px solid rgba(220,38,38,.15);
+  border-radius: 8px; padding: .5rem .65rem; margin-bottom: .4rem;
+  font-size: .7rem; line-height: 1.55;
+}
+
+/* ── Sidebar footer ──────────────────────────────────────── */
+.sb-footer {
+  font-size: .59rem; color: rgba(180,194,216,.25) !important;
+  text-align: center; line-height: 1.6; padding-top: .5rem;
+  border-top: 1px solid rgba(255,255,255,.05); margin-top: .5rem;
+}
+
+/* ── Sidebar alerts ──────────────────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+  padding: .3rem .55rem !important; font-size: .7rem !important;
+  border-radius: 7px !important;
+}
+
+/* ── Sidebar form ────────────────────────────────────────── */
+[data-testid="stSidebar"] [data-testid="stForm"] {
+  background: rgba(255,255,255,.02) !important;
+  border: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 9px !important; padding: .5rem !important;
+}
+
+/* ── Sidebar markdown links ──────────────────────────────── */
+[data-testid="stSidebar"] a {
+  color: rgba(88,150,255,.8) !important;
+  text-decoration: none !important;
+}
+[data-testid="stSidebar"] a:hover { color: #7eb8ff !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   HEADER — sticky full-width
    ═══════════════════════════════════════════════════════════ */
 .aana-header {
-  position: sticky;
-  top: 0;
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-left: -2rem;
-  margin-right: -2rem;
+  position: sticky; top: 0; z-index: 999;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-left: -2rem; margin-right: -2rem;
   width: calc(100% + 4rem);
-  background: linear-gradient(120deg, #0a1428 0%, #13234d 55%, #0f1d40 100%);
-  padding: .62rem 2rem;
-  box-shadow: 0 2px 24px rgba(0,0,0,.35);
+  background: linear-gradient(120deg, #080e1e 0%, #0f1e42 55%, #0a1630 100%);
+  padding: .6rem 2rem;
+  box-shadow: 0 2px 28px rgba(0,0,0,.45);
 }
-.hdr-left { display: flex; align-items: center; gap: .7rem; }
+.hdr-left { display: flex; align-items: center; gap: .72rem; }
+
+/* ── Header avatar — blue glowing ring ───────────────────── */
 .hdr-avatar-wrap {
-  width: 38px; height: 38px; border-radius: 50%;
-  overflow: hidden;
-  border: 2px solid rgba(59,130,246,.75);
-  box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 16px rgba(59,130,246,.45);
-  flex-shrink: 0;
-  animation: blueAvatarPulse 2.8s ease-in-out infinite;
+  width: 40px; height: 40px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0;
+  border: 2px solid rgba(59,130,246,.8);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 18px rgba(59,130,246,.5);
+  animation: blueRingPulse 3s ease-in-out infinite;
 }
 .hdr-avatar-wrap:hover {
-  box-shadow: 0 0 0 5px rgba(59,130,246,.32), 0 0 26px rgba(59,130,246,.65);
+  box-shadow: 0 0 0 5px rgba(59,130,246,.3), 0 0 30px rgba(59,130,246,.7);
 }
-@keyframes blueAvatarPulse {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 16px rgba(59,130,246,.45); }
-  50%       { box-shadow: 0 0 0 6px rgba(59,130,246,.28), 0 0 30px rgba(59,130,246,.7); }
+@keyframes blueRingPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 18px rgba(59,130,246,.5); }
+  50%       { box-shadow: 0 0 0 6px rgba(59,130,246,.28), 0 0 32px rgba(59,130,246,.75); }
 }
-.hdr-avatar { width: 100%; height: 100%; object-fit: cover; }
-.hdr-title-wrap { display: flex; flex-direction: column; gap: 0; line-height: 1; }
+.hdr-avatar { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.hdr-title-wrap { display: flex; flex-direction: column; line-height: 1; }
 .hdr-brand { display: flex; align-items: baseline; gap: 2px; }
 .hdr-sinhala {
   font-family: 'Noto Sans Sinhala', sans-serif;
@@ -102,42 +326,45 @@ button[title="View app in Streamlit Community Cloud"],
 .hdr-ai-text {
   font-family: 'Sora', sans-serif;
   font-size: 1.08rem; font-weight: 700; color: var(--gold); letter-spacing: .04em;
-  text-shadow: 0 0 18px rgba(232,200,64,.45);
+  text-shadow: 0 0 20px rgba(232,200,64,.5);
 }
 .hdr-sub {
-  font-size: .6rem; color: rgba(255,255,255,.38);
+  font-size: .58rem; color: rgba(255,255,255,.32);
   font-style: italic; letter-spacing: .04em; margin-top: 2px;
 }
-.hdr-right { display: flex; align-items: center; gap: .55rem; }
+.hdr-right { display: flex; align-items: center; gap: .5rem; }
 .hdr-pill {
-  display: flex; align-items: center; gap: .35rem;
-  font-size: .67rem; font-weight: 600; letter-spacing: .02em;
-  border-radius: 20px; padding: .24rem .7rem;
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .65rem; font-weight: 600; letter-spacing: .02em;
+  border-radius: 20px; padding: .22rem .65rem;
   border: 1px solid; white-space: nowrap; cursor: default; transition: all .2s;
+  font-family: 'DM Sans', sans-serif;
 }
+.hdr-pill svg { flex-shrink: 0; }
 .hdr-pill-google {
-  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.12);
-  color: rgba(255,255,255,.45);
+  background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1);
+  color: rgba(255,255,255,.4) !important;
 }
 .hdr-pill-google.active {
-  background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.4); color: #4ade80;
+  background: rgba(22,163,74,.14); border-color: rgba(22,163,74,.38);
+  color: #4ade80 !important;
 }
 .hdr-pill-admin {
-  background: rgba(232,200,64,.1); border-color: rgba(232,200,64,.3); color: var(--gold);
+  background: rgba(232,200,64,.09); border-color: rgba(232,200,64,.28);
+  color: var(--gold) !important;
 }
 
-/* shimmer underline — also breaks out full width */
+/* Shimmer underline */
 .hdr-shimmer {
   height: 2px;
-  margin-left: -2rem;
-  margin-right: -2rem;
+  margin-left: -2rem; margin-right: -2rem;
   width: calc(100% + 4rem);
   background: linear-gradient(90deg,
-    transparent 0%, rgba(232,200,64,.0) 15%,
-    var(--gold) 50%, rgba(232,200,64,.0) 85%, transparent 100%);
+    transparent 0%, rgba(232,200,64,0) 20%,
+    var(--gold) 50%, rgba(232,200,64,0) 80%, transparent 100%);
   background-size: 200% 100%;
-  animation: shimmerMove 3s ease-in-out infinite;
-  margin-bottom: .9rem;
+  animation: shimmerMove 3.5s ease-in-out infinite;
+  margin-bottom: 1rem;
 }
 @keyframes shimmerMove {
   0%   { background-position: -100% 0; }
@@ -145,205 +372,20 @@ button[title="View app in Streamlit Community Cloud"],
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SIDEBAR — compact premium dark
-   ═══════════════════════════════════════════════════════════ */
-[data-testid="stSidebar"] {
-  background: var(--sidebar-bg) !important;
-  border-right: 1px solid rgba(255,255,255,.05) !important;
-  min-width: 240px !important;
-  max-width: 260px !important;
-}
-[data-testid="stSidebarContent"] { padding: .65rem .75rem .75rem !important; }
-[data-testid="stSidebar"] * { color: #b8c4d8 !important; }
-[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 { color: #e2e8f0 !important; }
-
-/* Re-open arrow (collapsed state) */
-/* Force sidebar always visible */
-[data-testid="stSidebar"] {
-  visibility: visible !important;
-  display: flex !important;
-  opacity: 1 !important;
-  transform: none !important;
-  transition: none !important;
-}
-[data-testid="stSidebarCollapsedControl"] {
-  background: var(--sidebar-bg) !important;
-  border: 1px solid rgba(255,255,255,.1) !important;
-  border-left: none !important;
-  border-radius: 0 10px 10px 0 !important;
-  box-shadow: 3px 0 14px rgba(0,0,0,.3) !important;
-  top: 5rem !important;
-  visibility: visible !important;
-  display: flex !important;
-}
-[data-testid="stSidebarCollapsedControl"] button,
-[data-testid="stSidebarCollapsedControl"] svg {
-  color: var(--gold) !important;
-  fill: var(--gold) !important;
-  stroke: var(--gold) !important;
-}
-/* Sidebar nav expand button */
-[data-testid="stSidebar"] > div:first-child {
-  display: flex !important;
-  flex-direction: column !important;
-}
-
-/* Sidebar brand */
-.sb-brand {
-  display: flex; align-items: center; justify-content: center; gap: .4rem;
-  padding: .3rem 0 .6rem;
-  border-bottom: 1px solid rgba(255,255,255,.06);
-  margin-bottom: .5rem;
-}
-.sb-brand-sinhala {
-  font-family: 'Noto Sans Sinhala', sans-serif;
-  font-size: .95rem; font-weight: 900; color: #fff !important;
-}
-.sb-brand-ai {
-  font-family: 'Sora', sans-serif;
-  font-size: .95rem; font-weight: 700;
-  color: var(--gold) !important;
-  text-shadow: 0 0 14px rgba(232,200,64,.5);
-}
-
-/* Section labels */
-.sb-label {
-  font-size: .6rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .1em;
-  color: rgba(88,150,255,.75) !important;
-  margin: .55rem 0 .22rem; padding-left: .1rem;
-}
-
-/* Sidebar buttons — compact */
-[data-testid="stSidebar"] .stButton > button {
-  background: rgba(255,255,255,.04) !important;
-  border: 1px solid rgba(255,255,255,.09) !important;
-  color: #c0cde0 !important; border-radius: 7px !important;
-  font-size: .74rem !important; padding: .32rem .7rem !important;
-  height: auto !important; min-height: 0 !important;
-  transition: all .18s ease !important;
-  font-family: 'DM Sans', sans-serif !important;
-}
-[data-testid="stSidebar"] .stButton > button:hover {
-  background: rgba(88,150,255,.1) !important;
-  border-color: rgba(88,150,255,.3) !important;
-  color: #fff !important; transform: translateX(1px) !important;
-}
-[data-testid="stSidebar"] .stButton > button[kind="primary"] {
-  background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
-  border: none !important; color: #fff !important; font-weight: 600 !important;
-  box-shadow: 0 2px 10px rgba(42,79,158,.35) !important;
-}
-[data-testid="stSidebar"] .stButton > button[kind="primary"]:hover {
-  background: linear-gradient(135deg, #1e3d7a 0%, #3060b8 100%) !important;
-  box-shadow: 0 3px 14px rgba(42,79,158,.5) !important;
-  transform: translateY(-1px) !important;
-}
-
-/* Expanders */
-[data-testid="stSidebar"] [data-testid="stExpander"] {
-  background: rgba(255,255,255,.025) !important;
-  border: 1px solid rgba(255,255,255,.06) !important;
-  border-radius: 7px !important; margin-bottom: .26rem !important;
-  overflow: hidden !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] summary {
-  font-size: .75rem !important; font-weight: 600 !important;
-  padding: .36rem .55rem !important; color: #c0cde0 !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] summary:hover {
-  color: #fff !important; background: rgba(255,255,255,.04) !important;
-}
-[data-testid="stSidebar"] [data-testid="stExpander"] svg {
-  width: 13px !important; height: 13px !important;
-  color: rgba(255,255,255,.35) !important;
-}
-
-/* Inputs */
-[data-testid="stSidebar"] input,
-[data-testid="stSidebar"] textarea {
-  background: rgba(255,255,255,.05) !important;
-  border: 1px solid rgba(255,255,255,.1) !important;
-  color: #e2e8f0 !important; border-radius: 7px !important;
-  font-size: .75rem !important; font-family: 'DM Sans', sans-serif !important;
-}
-[data-testid="stSidebar"] input::placeholder { color: rgba(255,255,255,.22) !important; }
-[data-testid="stSidebar"] input:focus {
-  border-color: rgba(88,150,255,.4) !important;
-  box-shadow: 0 0 0 2px rgba(88,150,255,.1) !important;
-}
-
-/* Toggle */
-[data-testid="stSidebar"] [data-testid="stToggle"] label {
-  font-size: .73rem !important; font-weight: 400 !important;
-}
-
-/* Caption */
-[data-testid="stSidebar"] small,
-[data-testid="stSidebar"] .stCaption,
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
-  font-size: .65rem !important; color: rgba(184,196,216,.45) !important;
-}
-
-/* Subject pill */
-.sb-subject-pill {
-  display: flex; align-items: center; gap: .4rem;
-  background: rgba(88,150,255,.1); border: 1px solid rgba(88,150,255,.22);
-  border-radius: 7px; padding: .36rem .65rem;
-  font-size: .71rem; font-weight: 600; color: #9ecfff !important;
-  margin-bottom: .35rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Admin on badge */
-.sb-admin-on {
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(232,200,64,.09); border: 1px solid rgba(232,200,64,.25);
-  border-radius: 7px; padding: .28rem .6rem;
-  font-size: .68rem; font-weight: 700; color: var(--gold) !important;
-  text-align: center; margin-bottom: .4rem; letter-spacing: .04em;
-}
-
-/* Free keys box */
-.fk-box {
-  background: rgba(220,38,38,.07); border: 1px solid rgba(220,38,38,.18);
-  border-radius: 8px; padding: .5rem .65rem; margin-bottom: .4rem;
-  font-size: .7rem; line-height: 1.55;
-}
-
-/* Sidebar footer */
-.sb-footer {
-  font-size: .6rem; color: rgba(184,196,216,.28) !important;
-  text-align: center; line-height: 1.65; padding-top: .5rem;
-  border-top: 1px solid rgba(255,255,255,.05); margin-top: .5rem;
-}
-
-/* Dividers in sidebar */
-[data-testid="stSidebar"] hr {
-  border-color: rgba(255,255,255,.06) !important; margin: .45rem 0 !important;
-}
-
-/* Alerts in sidebar */
-[data-testid="stSidebar"] [data-testid="stAlert"] {
-  padding: .32rem .6rem !important; font-size: .7rem !important;
-  border-radius: 7px !important;
-}
-
-/* ═══════════════════════════════════════════════════════════
    STATUS BAR
    ═══════════════════════════════════════════════════════════ */
 .status-bar {
-  display: flex; align-items: center; flex-wrap: wrap; gap: .35rem;
+  display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
   background: var(--surface); border: 1px solid var(--border-soft);
-  border-radius: 10px; padding: .4rem .9rem; margin-bottom: .75rem;
-  font-size: .73rem; color: var(--text-soft);
-  box-shadow: 0 1px 6px rgba(0,0,0,.05);
+  border-radius: 10px; padding: .42rem .95rem; margin-bottom: .8rem;
+  font-size: .72rem; color: var(--text-soft);
+  box-shadow: 0 1px 8px rgba(0,0,0,.05);
 }
 .status-sep { color: var(--border); }
 .doc-tag {
   background: #e5eeff; color: #1b3568; border-radius: 5px;
   padding: .08rem .38rem; font-size: .65rem; font-weight: 600;
-  white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .gsearch-badge { color: #16a34a; font-weight: 700; font-size: .7rem; }
 
@@ -352,38 +394,44 @@ button[title="View app in Streamlit Community Cloud"],
    ═══════════════════════════════════════════════════════════ */
 .hero-wrap {
   display: flex; flex-direction: column; align-items: center;
-  text-align: center; padding: 3.5rem 1rem 2rem; gap: 1rem;
+  text-align: center; padding: 4rem 1rem 2rem; gap: 1rem;
 }
+/* Hero avatar — blue glow */
 .hero-avatar-wrap {
-  width: 88px; height: 88px; border-radius: 50%; overflow: hidden;
-  border: 3px solid rgba(59,130,246,.8);
-  box-shadow: 0 0 0 5px rgba(59,130,246,.15), 0 0 28px rgba(59,130,246,.5);
-  animation: heroAvatarGlow 2.8s ease-in-out infinite;
+  width: 92px; height: 92px; border-radius: 50%; overflow: hidden;
+  border: 3px solid rgba(59,130,246,.85);
+  box-shadow: 0 0 0 6px rgba(59,130,246,.14), 0 0 32px rgba(59,130,246,.55);
+  animation: heroBlueGlow 3s ease-in-out infinite;
 }
-@keyframes heroAvatarGlow {
-  0%, 100% { box-shadow: 0 0 0 5px rgba(59,130,246,.15), 0 0 28px rgba(59,130,246,.5); }
-  50%       { box-shadow: 0 0 0 8px rgba(59,130,246,.25), 0 0 44px rgba(59,130,246,.75); }
+@keyframes heroBlueGlow {
+  0%, 100% { box-shadow: 0 0 0 6px rgba(59,130,246,.14), 0 0 32px rgba(59,130,246,.55); }
+  50%       { box-shadow: 0 0 0 10px rgba(59,130,246,.22), 0 0 52px rgba(59,130,246,.8); }
 }
 .hero-avatar { width: 100%; height: 100%; object-fit: cover; }
 .hero-title {
   font-family: 'Noto Sans Sinhala', sans-serif;
-  font-size: 1.9rem; font-weight: 900; color: var(--accent); line-height: 1.1;
+  font-size: 2rem; font-weight: 900; color: var(--accent); line-height: 1.1;
 }
-.hero-ai { color: var(--gold-glow); }
-.hero-sub { font-size: .87rem; color: var(--text-soft); max-width: 360px; line-height: 1.6; }
+.hero-ai { color: var(--gold-glow); text-shadow: 0 0 20px rgba(255,215,0,.4); }
+.hero-sub { font-size: .88rem; color: var(--text-soft); max-width: 380px; line-height: 1.65; }
 .hero-steps {
   display: flex; gap: .7rem; flex-wrap: wrap;
-  justify-content: center; margin-top: .4rem;
+  justify-content: center; margin-top: .5rem;
 }
 .hero-step {
-  display: flex; align-items: center; gap: .35rem;
-  font-size: .73rem; color: var(--text-soft);
+  display: flex; align-items: center; gap: .38rem;
+  font-size: .73rem; color: var(--text-mid);
   background: var(--surface); border: 1px solid var(--border-soft);
-  border-radius: 20px; padding: .3rem .78rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  border-radius: 22px; padding: .34rem .85rem;
+  box-shadow: 0 1px 5px rgba(0,0,0,.05);
+  transition: box-shadow .2s, transform .2s;
+}
+.hero-step:hover {
+  box-shadow: 0 3px 12px rgba(27,53,104,.1);
+  transform: translateY(-1px);
 }
 .hero-step-num {
-  width: 16px; height: 16px; border-radius: 50%;
+  width: 17px; height: 17px; border-radius: 50%;
   background: var(--accent); color: #fff;
   font-size: .58rem; font-weight: 700;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
@@ -391,24 +439,22 @@ button[title="View app in Streamlit Community Cloud"],
 
 /* Load banner */
 .load-banner {
-  text-align: center; padding: 2.5rem 1rem;
+  text-align: center; padding: 2.5rem 1.5rem;
   background: var(--surface); border: 1.5px dashed var(--border);
   border-radius: 14px; margin-top: .5rem;
 }
-.lb-icon { font-size: 2.2rem; margin-bottom: .45rem; }
-.lb-title { font-size: 1rem; font-weight: 700; color: var(--accent); margin-bottom: .3rem; }
-.lb-sub { font-size: .82rem; color: var(--text-soft); line-height: 1.65; }
+.lb-icon-wrap { margin-bottom: .55rem; display: flex; justify-content: center; }
+.lb-title { font-size: 1.02rem; font-weight: 700; color: var(--accent); margin-bottom: .3rem; }
+.lb-sub { font-size: .83rem; color: var(--text-soft); line-height: 1.65; }
 
 /* ═══════════════════════════════════════════════════════════
-   CHAT MESSAGES — premium bubbles, user on RIGHT
+   CHAT MESSAGES
    ═══════════════════════════════════════════════════════════ */
 [data-testid="stChatMessage"] {
   background: transparent !important;
   border: none !important;
-  padding: .18rem 0 !important;
+  padding: .2rem 0 !important;
 }
-
-/* AI avatar — round */
 [data-testid="stChatMessage"][data-role="assistant"] img,
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageAvatarIcon"] {
   border-radius: 50% !important;
@@ -418,64 +464,43 @@ button[title="View app in Streamlit Community Cloud"],
   box-shadow: 0 2px 8px rgba(0,0,0,.1) !important;
   flex-shrink: 0 !important;
 }
-
-/* User row flipped to right */
 [data-testid="stChatMessage"][data-role="user"] {
   flex-direction: row-reverse !important;
 }
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageAvatarIcon"] {
   border-radius: 50% !important;
-  background: var(--user-bg) !important;
-  color: #fff !important;
+  background: var(--user-bg) !important; color: #fff !important;
   border: 2px solid rgba(27,53,104,.3) !important;
   width: 32px !important; height: 32px !important;
 }
-
-/* User bubble */
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
   background: linear-gradient(135deg, #1b3568 0%, #2a4f9e 100%) !important;
   color: #fff !important;
   border-radius: 18px 4px 18px 18px !important;
-  padding: .62rem .95rem !important;
-  font-size: .84rem !important;
-  max-width: 72% !important;
-  margin-left: auto !important;
-  margin-right: 0 !important;
-  box-shadow: 0 3px 14px rgba(27,53,104,.25) !important;
-  border: none !important;
-  line-height: 1.55 !important;
+  padding: .65rem 1rem !important; font-size: .84rem !important;
+  max-width: 72% !important; margin-left: auto !important;
+  box-shadow: 0 3px 16px rgba(27,53,104,.28) !important;
+  border: none !important; line-height: 1.55 !important;
 }
 [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] * {
   color: #fff !important;
 }
-
-/* AI bubble */
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
-  background: var(--ai-bg) !important;
-  color: var(--text) !important;
+  background: var(--ai-bg) !important; color: var(--text) !important;
   border-radius: 4px 18px 18px 18px !important;
-  padding: .72rem 1rem !important;
-  font-size: .84rem !important;
+  padding: .75rem 1.05rem !important; font-size: .84rem !important;
   max-width: 80% !important;
   border: 1px solid var(--ai-border) !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,.06) !important;
-  line-height: 1.65 !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07) !important; line-height: 1.65 !important;
 }
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] p {
-  margin-bottom: .45rem !important;
+  margin-bottom: .48rem !important;
 }
 [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] strong {
   color: var(--accent) !important; font-weight: 600 !important;
 }
-[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] ul,
-[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] ol {
-  padding-left: 1.1rem !important; margin: .35rem 0 !important;
-}
-[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] li {
-  margin-bottom: .22rem !important;
-}
 
-/* Chat input */
+/* ── Chat input ───────────────────────────────────────────── */
 [data-testid="stChatInput"] {
   background: var(--chat-input) !important;
   border: 1.5px solid var(--border) !important;
@@ -485,7 +510,7 @@ button[title="View app in Streamlit Community Cloud"],
 }
 [data-testid="stChatInput"]:focus-within {
   border-color: rgba(27,53,104,.38) !important;
-  box-shadow: 0 3px 20px rgba(27,53,104,.1) !important;
+  box-shadow: 0 3px 22px rgba(27,53,104,.1) !important;
 }
 [data-testid="stChatInput"] textarea {
   font-size: .84rem !important; color: var(--text) !important;
@@ -496,61 +521,70 @@ button[title="View app in Streamlit Community Cloud"],
 [data-testid="stChatInput"] button:hover { background: var(--accent-glow) !important; }
 
 /* ═══════════════════════════════════════════════════════════
-   FOOTER — full width, centered, animated
+   FOOTER — pinned to bottom, compact, tight lines
    ═══════════════════════════════════════════════════════════ */
 .aana-footer {
-  margin-left: -2rem;
-  margin-right: -2rem;
+  margin-left: -2rem; margin-right: -2rem;
   width: calc(100% + 4rem);
-  background: linear-gradient(120deg, #0a1428 0%, #13234d 55%, #0f1d40 100%);
-  padding: .65rem 2rem;
-  margin-top: 2.5rem;
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 0;
-  font-size: .67rem;
-  line-height: 1.4;
+  background: linear-gradient(120deg, #080e1e 0%, #0f1e42 55%, #0a1630 100%);
+  padding: .6rem 2rem;
+  margin-top: auto;
 }
-.ftr-copy { color: rgba(255,255,255,.28); letter-spacing: .04em; margin-bottom: .05rem; }
+.ftr-inner {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1px; line-height: 1.35;
+}
+.ftr-copy {
+  font-size: .63rem; color: rgba(255,255,255,.25); letter-spacing: .04em;
+}
 .ftr-dev {
-  display: flex; align-items: center; gap: .3rem;
-  color: rgba(255,255,255,.35); font-size: .67rem;
+  display: inline-flex; align-items: center; gap: .28rem;
+  font-size: .63rem; color: rgba(255,255,255,.3);
 }
 .ftr-heart {
-  display: inline-block; color: #ef4444;
+  display: inline-block; color: #ef4444; font-size: .75rem;
   animation: heartbeat 1.4s ease-in-out infinite;
 }
 @keyframes heartbeat {
   0%, 100% { transform: scale(1); }
-  14%       { transform: scale(1.25); }
+  14%       { transform: scale(1.28); }
   28%       { transform: scale(1); }
   42%       { transform: scale(1.15); }
   56%       { transform: scale(1); }
 }
+/* DSVB — gold glow animation, no underline ever */
 .ftr-name {
-  font-weight: 800; color: var(--gold) !important;
+  font-weight: 800 !important;
+  font-family: 'Sora', sans-serif;
+  color: var(--gold) !important;
   text-decoration: none !important;
-  letter-spacing: .08em;
-  text-shadow: 0 0 8px rgba(232,200,64,.6), 0 0 20px rgba(255,215,0,.35);
-  animation: dsvbGlow 2s ease-in-out infinite;
-  background: none !important;
+  letter-spacing: .1em;
+  text-shadow: 0 0 10px rgba(232,200,64,.65), 0 0 24px rgba(255,215,0,.3);
+  animation: dsvbPulse 2.2s ease-in-out infinite;
+  border-bottom: none !important;
+  outline: none;
 }
-.ftr-name:hover {
-  text-shadow: 0 0 18px rgba(255,215,0,.95), 0 0 36px rgba(255,215,0,.6), 0 0 6px rgba(255,215,0,.4);
+.ftr-name:hover,
+.ftr-name:visited,
+.ftr-name:focus,
+.ftr-name:active {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  text-shadow: 0 0 18px rgba(255,215,0,1), 0 0 40px rgba(255,215,0,.65), 0 0 8px rgba(255,215,0,.4);
 }
-@keyframes dsvbGlow {
-  0%, 100% { text-shadow: 0 0 8px rgba(232,200,64,.6), 0 0 20px rgba(255,215,0,.35); }
-  50%       { text-shadow: 0 0 16px rgba(255,215,0,1), 0 0 36px rgba(255,215,0,.65), 0 0 60px rgba(255,215,0,.25); }
+@keyframes dsvbPulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(232,200,64,.65), 0 0 24px rgba(255,215,0,.3); }
+  50%       { text-shadow: 0 0 18px rgba(255,215,0,1), 0 0 42px rgba(255,215,0,.6), 0 0 70px rgba(255,215,0,.2); }
 }
 
 /* ═══════════════════════════════════════════════════════════
    MISC POLISH
    ═══════════════════════════════════════════════════════════ */
 [data-testid="stAlert"] {
-  font-size: .77rem !important; padding: .42rem .75rem !important;
+  font-size: .77rem !important; padding: .42rem .78rem !important;
   border-radius: 8px !important;
 }
-
-/* Code in chat */
 [data-testid="stChatMessageContent"] code {
   background: #f0ede6 !important; border-radius: 4px !important;
   padding: .1rem .32rem !important; font-size: .78rem !important;
@@ -564,66 +598,18 @@ button[title="View app in Streamlit Community Cloud"],
   background: transparent !important; color: #e2e8f0 !important;
 }
 
-
-/* ── Footer link — kill all underlines globally ─────────── */
-.aana-footer a,
-.aana-footer a:visited,
-.aana-footer a:hover,
-.aana-footer a:focus {
-  text-decoration: none !important;
-  border-bottom: none !important;
-  outline: none !important;
-}
-
-/* ── Sidebar — enhanced section styles ──────────────────── */
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a {
-  color: rgba(88,150,255,.75) !important;
-  text-decoration: none !important;
-}
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a:hover {
-  color: #58a6ff !important;
-}
-
-/* Sidebar form inputs look better */
-[data-testid="stSidebar"] [data-testid="stForm"] {
-  background: rgba(255,255,255,.025) !important;
-  border: 1px solid rgba(255,255,255,.07) !important;
-  border-radius: 10px !important;
-  padding: .5rem !important;
-}
-
-/* Sidebar toggle track */
-[data-testid="stSidebar"] [data-baseweb="checkbox"] span {
-  border-color: rgba(88,150,255,.4) !important;
-}
-
-/* Stronger sidebar visibility fix */
-section[data-testid="stSidebar"] {
-  display: flex !important;
-  visibility: visible !important;
-  min-width: 240px !important;
-  width: 240px !important;
-  transform: translateX(0) !important;
-  transition: transform 0.3s ease !important;
-}
-section[data-testid="stSidebar"][aria-expanded="false"] {
-  min-width: 0 !important;
-  width: 0 !important;
-}
-
-/* ── Scrollbar ────────────────────────────────────────────── */
+/* ── Scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.1); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.18); }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.2); }
 
 /* ── Mobile ──────────────────────────────────────────────── */
 @media (max-width: 768px) {
-  .block-container { padding: 0 1rem 3rem !important; }
+  .block-container { padding: 0 1rem 0 !important; }
   .aana-header {
     margin-left: -1rem; margin-right: -1rem;
-    width: calc(100% + 2rem);
-    padding: .5rem 1rem;
+    width: calc(100% + 2rem); padding: .5rem 1rem;
   }
   .hdr-shimmer {
     margin-left: -1rem; margin-right: -1rem;
@@ -631,20 +617,18 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
   }
   .aana-footer {
     margin-left: -1rem; margin-right: -1rem;
-    width: calc(100% + 2rem);
-    padding: .7rem 1rem;
+    width: calc(100% + 2rem); padding: .55rem 1rem;
   }
-  .hdr-sinhala, .hdr-ai-text { font-size: .9rem; }
+  .hdr-sinhala, .hdr-ai-text { font-size: .92rem; }
   .hdr-sub { display: none; }
   .hdr-pill { font-size: .6rem; padding: .18rem .5rem; }
-  .hero-wrap { padding: 2rem .5rem 1.5rem; }
-  .hero-title { font-size: 1.5rem; }
-  .hero-steps { flex-direction: column; align-items: center; gap: .4rem; }
+  .hero-wrap { padding: 2.5rem .5rem 1.5rem; }
+  .hero-title { font-size: 1.6rem; }
+  .hero-steps { flex-direction: column; align-items: center; }
   [data-testid="stChatMessage"][data-role="user"] [data-testid="stChatMessageContent"] {
     max-width: 88% !important;
   }
   [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"] {
-    max-width: 92% !important;
+    max-width: 93% !important;
   }
-  .aana-footer { flex-direction: column; gap: .15rem; }
 }
