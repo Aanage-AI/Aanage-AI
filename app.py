@@ -282,12 +282,11 @@ google_badge = "🟢 Google ON" if st.session_state.google_search else "⚪ Goog
 admin_label  = "🔓 Logged In" if st.session_state.admin_logged_in else "🔐 Admin"
 
 st.markdown(f"""
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <div class="aana-header">
   <div class="hdr-left">
     <div class="hdr-avatar-wrap">
       <img src="{ADMIN_IMG_SRC}" alt="ආනා" class="hdr-avatar"
-           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=162b56&color=9ecfff&size=38'">
+           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=0f1628&color=e8c840&size=38'">
     </div>
     <div class="hdr-title-wrap">
       <div class="hdr-brand">
@@ -297,12 +296,12 @@ st.markdown(f"""
       <span class="hdr-sub">Himan Thathuwa Kethala Hiruwa</span>
     </div>
   </div>
-  <div class="hdr-right-info">
-    <span class="hdr-google-badge {'active' if st.session_state.google_search else ''}">{google_badge}</span>
-    <span class="hdr-admin-badge">{admin_label}</span>
+  <div class="hdr-right">
+    <span class="hdr-pill hdr-pill-google {'active' if st.session_state.google_search else ''}">{google_badge}</span>
+    <span class="hdr-pill hdr-pill-admin">{admin_label}</span>
   </div>
 </div>
-<div class="hdr-shimmer-line"></div>
+<div class="hdr-shimmer"></div>
 """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -316,7 +315,7 @@ if not DRIVE_API_KEY or not ROOT_FOLDER_ID:
 #   SIDEBAR — all native Streamlit widgets
 # ══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    st.markdown('<div class="sb-header">ආනාගේ AI</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-brand"><span class="sb-brand-sinhala">ආනාගේ</span><span class="sb-brand-ai">&nbsp;AI</span></div>', unsafe_allow_html=True)
 
     # ── Free API keys hint ──────────────────────────────────────────────────
     if st.button("🔑 තාමත් API Key එකක් නැද්ද..?", use_container_width=True, key="btn_freekeys"):
@@ -351,7 +350,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
     st.markdown("---")
 
     # ── API Key section ─────────────────────────────────────────────────────
-    st.markdown('<div class="sb-section-title">🔑 Gemini API Key</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-label">🔑 Gemini API Key</div>', unsafe_allow_html=True)
     api_key_input = st.text_input(
         "API Key",
         value=st.session_state.gemini_key,
@@ -384,7 +383,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
     st.markdown("---")
 
     # ── Google Search toggle ────────────────────────────────────────────────
-    st.markdown('<div class="sb-section-title">🌐 Google Search</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-label">🌐 Google Search</div>', unsafe_allow_html=True)
     google_on = st.toggle(
         "Enable Google Search",
         value=st.session_state.google_search,
@@ -400,7 +399,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
     st.markdown("---")
 
     # ── Subject tree ────────────────────────────────────────────────────────
-    st.markdown('<div class="sb-section-title">📂 Select Subject</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-label">📂 Select Subject</div>', unsafe_allow_html=True)
 
     try:
         structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
@@ -435,7 +434,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
 
     # ── Load / New Chat buttons ─────────────────────────────────────────────
     if st.session_state.current_subject_id:
-        st.markdown(f'<div class="selected-subject-info">📂 {st.session_state.subject_name}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sb-subject-pill">📂 {st.session_state.subject_name}</div>', unsafe_allow_html=True)
 
         if st.button("⬇️ Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
             with st.spinner(f"Loading docs for {st.session_state.subject_name}…"):
@@ -473,8 +472,8 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
                     else:
                         st.error("❌ Invalid credentials")
     else:
-        st.markdown('<div class="admin-badge">⚙️ Admin Mode</div>', unsafe_allow_html=True)
-        st.markdown('<div class="sb-section-title">Free API Keys</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sb-admin-on">⚙️ Admin Mode</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sb-label">Free API Keys</div>', unsafe_allow_html=True)
 
         for i, k in enumerate(st.session_state.free_api_keys):
             c1, c2 = st.columns([4, 1])
@@ -495,7 +494,7 @@ Video එක බලලා තමන්ටම කියලා එකක් හද
             st.session_state.admin_logged_in = False
             st.rerun()
 
-    st.markdown('<div class="sb-footer-note">Docs refresh every 5 min.<br>Drop new files in Drive anytime.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sb-footer">Docs refresh every 5 min.<br>Drop new files in Drive anytime.</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   MAIN CHAT AREA
@@ -618,9 +617,9 @@ else:
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="aana-footer">
-  <div class="ftr-copy">© 2025 All Rights Reserved</div>
+  <div class="ftr-copy">©2025 All Rights Reserved</div>
   <div class="ftr-dev">
-    Developed with <span class="ftr-heart">❤️</span>
+    Developed with <span class="ftr-heart">❤</span> by&nbsp;
     <a class="ftr-name" href="https://venurakabojithananda.github.io/" rel="noopener" target="_blank">DSVB</a>
   </div>
 </div>
