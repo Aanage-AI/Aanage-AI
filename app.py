@@ -155,7 +155,7 @@ def extract_text(file_bytes, filename):
     except Exception as e:
         return f"[Could not read {filename}: {e}]"
 
-@st.cache_data(show_spinner=False, ttl=1800)  # 30 min cache
+@st.cache_data(show_spinner=False, ttl=1800)
 def get_structure(root_id, api_key):
     tree = {}
     years, _ = list_folder(root_id, api_key)
@@ -169,7 +169,7 @@ def get_structure(root_id, api_key):
                 tree[year_name][sem_name][subj_name] = subj_id
     return tree
 
-@st.cache_data(show_spinner=False, ttl=600)  # 10 min cache
+@st.cache_data(show_spinner=False, ttl=600)
 def load_subject_docs(subject_folder_id, api_key):
     SUPPORTED = {".pdf", ".docx", ".doc", ".txt", ".md", ".csv",
                  ".json", ".pptx", ".xlsx", ".xls"}
@@ -281,7 +281,7 @@ def sb_btn_label(icon_name, text, color="rgba(184,196,216,.8)"):
     return f'{ico(icon_name, 13, color)}&nbsp;&nbsp;{text}'
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   HIDE STREAMLIT CHROME
+#   HIDE STREAMLIT CHROME (but NOT sidebar collapse)
 # ══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
@@ -294,25 +294,6 @@ footer { display: none !important; }
 button[title="View app in Streamlit Community Cloud"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
-/* Force sidebar always visible — belt AND suspenders */
-section[data-testid="stSidebar"] {
-  display: flex !important;
-  transform: translateX(0) !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  min-width: 252px !important;
-  max-width: 252px !important;
-  width: 252px !important;
-}
-section[data-testid="stSidebar"][style*="display: none"],
-section[data-testid="stSidebar"][style*="display:none"] {
-  display: flex !important;
-}
-[data-testid="stSidebarCollapseButton"],
-button[data-testid="stSidebarCollapseButton"] {
-  display: none !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -364,8 +345,7 @@ with st.sidebar:
     st.markdown('<div class="sb-brand"><span class="sb-brand-sinhala">ආනාගේ</span><span class="sb-brand-ai">&nbsp;AI</span></div>', unsafe_allow_html=True)
 
     # ── Free API keys ───────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-section-btn" id="freekeys-trigger">{ico("key",13,"#e8c840")}&nbsp;&nbsp;<span>API Key නැද්ද..?</span></div>', unsafe_allow_html=True)
-    if st.button("API Key නැද්ද..?", use_container_width=True, key="btn_freekeys"):
+    if st.button("🔑 API Key නැද්ද..?", use_container_width=True, key="btn_freekeys"):
         st.session_state.show_free_keys = not st.session_state.show_free_keys
 
     if st.session_state.show_free_keys:
@@ -380,7 +360,7 @@ with st.sidebar:
                 with col1:
                     st.code(masked, language=None)
                 with col2:
-                    if st.button("", key=f"copy_{k[:8]}", help="Copy key"):
+                    if st.button("📋", key=f"copy_{k[:8]}", help="Copy key"):
                         st.write(f"`{k}`")
                 st.caption(f"Used {get_usage(k)}× today")
         else:
@@ -599,6 +579,7 @@ else:
             with st.chat_message("user"):
                 st.markdown(msg["content"])
         else:
+            # Use the admin image as avatar (circle with glow via CSS)
             with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
                 st.markdown(msg["content"])
                 if (not st.session_state.google_search
@@ -607,7 +588,7 @@ else:
                             "not in the documents", "not found", "cannot find",
                             "no information", "document doesn't", "isn't in"
                         ])):
-                    if st.button("Enable Google Search for a better answer",
+                    if st.button("🌐 Enable Google Search for a better answer",
                                  key=f"gs_suggest_{msg['content'][:20]}"):
                         st.session_state.google_search = True
                         st.rerun()
@@ -615,14 +596,14 @@ else:
     if question := st.chat_input(f"Ask about {subj_name}…"):
         key = st.session_state.gemini_key
         if not key:
-            st.error("Sidebar-ලා API key paste කරන්නකෝ first!")
+            st.error("Sidebar එකේ API key paste කරන්න!")
         else:
             st.session_state.messages.append({"role": "user", "content": question})
             with st.chat_message("user"):
                 st.markdown(question)
             with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
                 if st.session_state.google_search:
-                    st.caption("Google Search enabled — may enhance your answer")
+                    st.caption("🌐 Google Search enabled — may enhance your answer")
                 with st.spinner("AI ආනා thinking…"):
                     try:
                         answer = ask_gemini(key, question, docs, st.session_state.google_search)
