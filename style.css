@@ -79,11 +79,19 @@ button[title="View app in Streamlit Community Cloud"],
 .hdr-left { display: flex; align-items: center; gap: .7rem; }
 .hdr-avatar-wrap {
   width: 38px; height: 38px; border-radius: 50%;
-  overflow: hidden; border: 2px solid rgba(232,200,64,.45);
-  box-shadow: 0 0 0 3px rgba(232,200,64,.12); flex-shrink: 0;
-  transition: box-shadow .3s;
+  overflow: hidden;
+  border: 2px solid rgba(59,130,246,.75);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 16px rgba(59,130,246,.45);
+  flex-shrink: 0;
+  animation: blueAvatarPulse 2.8s ease-in-out infinite;
 }
-.hdr-avatar-wrap:hover { box-shadow: 0 0 0 4px rgba(232,200,64,.28); }
+.hdr-avatar-wrap:hover {
+  box-shadow: 0 0 0 5px rgba(59,130,246,.32), 0 0 26px rgba(59,130,246,.65);
+}
+@keyframes blueAvatarPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 16px rgba(59,130,246,.45); }
+  50%       { box-shadow: 0 0 0 6px rgba(59,130,246,.28), 0 0 30px rgba(59,130,246,.7); }
+}
 .hdr-avatar { width: 100%; height: 100%; object-fit: cover; }
 .hdr-title-wrap { display: flex; flex-direction: column; gap: 0; line-height: 1; }
 .hdr-brand { display: flex; align-items: baseline; gap: 2px; }
@@ -151,6 +159,14 @@ button[title="View app in Streamlit Community Cloud"],
 [data-testid="stSidebar"] h3 { color: #e2e8f0 !important; }
 
 /* Re-open arrow (collapsed state) */
+/* Force sidebar always visible */
+[data-testid="stSidebar"] {
+  visibility: visible !important;
+  display: flex !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
 [data-testid="stSidebarCollapsedControl"] {
   background: var(--sidebar-bg) !important;
   border: 1px solid rgba(255,255,255,.1) !important;
@@ -158,12 +174,19 @@ button[title="View app in Streamlit Community Cloud"],
   border-radius: 0 10px 10px 0 !important;
   box-shadow: 3px 0 14px rgba(0,0,0,.3) !important;
   top: 5rem !important;
+  visibility: visible !important;
+  display: flex !important;
 }
 [data-testid="stSidebarCollapsedControl"] button,
 [data-testid="stSidebarCollapsedControl"] svg {
   color: var(--gold) !important;
   fill: var(--gold) !important;
   stroke: var(--gold) !important;
+}
+/* Sidebar nav expand button */
+[data-testid="stSidebar"] > div:first-child {
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 /* Sidebar brand */
@@ -333,8 +356,13 @@ button[title="View app in Streamlit Community Cloud"],
 }
 .hero-avatar-wrap {
   width: 88px; height: 88px; border-radius: 50%; overflow: hidden;
-  border: 3px solid rgba(27,53,104,.2);
-  box-shadow: 0 6px 28px rgba(27,53,104,.15);
+  border: 3px solid rgba(59,130,246,.8);
+  box-shadow: 0 0 0 5px rgba(59,130,246,.15), 0 0 28px rgba(59,130,246,.5);
+  animation: heroAvatarGlow 2.8s ease-in-out infinite;
+}
+@keyframes heroAvatarGlow {
+  0%, 100% { box-shadow: 0 0 0 5px rgba(59,130,246,.15), 0 0 28px rgba(59,130,246,.5); }
+  50%       { box-shadow: 0 0 0 8px rgba(59,130,246,.25), 0 0 44px rgba(59,130,246,.75); }
 }
 .hero-avatar { width: 100%; height: 100%; object-fit: cover; }
 .hero-title {
@@ -471,21 +499,21 @@ button[title="View app in Streamlit Community Cloud"],
    FOOTER — full width, centered, animated
    ═══════════════════════════════════════════════════════════ */
 .aana-footer {
-  /* Break out of block-container padding to go full width */
   margin-left: -2rem;
   margin-right: -2rem;
   width: calc(100% + 4rem);
   background: linear-gradient(120deg, #0a1428 0%, #13234d 55%, #0f1d40 100%);
-  padding: .8rem 2rem;
+  padding: .65rem 2rem;
   margin-top: 2.5rem;
   display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: .18rem;
+  flex-direction: column; gap: 0;
   font-size: .67rem;
+  line-height: 1.4;
 }
-.ftr-copy { color: rgba(255,255,255,.28); letter-spacing: .04em; }
+.ftr-copy { color: rgba(255,255,255,.28); letter-spacing: .04em; margin-bottom: .05rem; }
 .ftr-dev {
-  display: flex; align-items: center; gap: .28rem;
-  color: rgba(255,255,255,.3); font-size: .67rem;
+  display: flex; align-items: center; gap: .3rem;
+  color: rgba(255,255,255,.35); font-size: .67rem;
 }
 .ftr-heart {
   display: inline-block; color: #ef4444;
@@ -499,13 +527,19 @@ button[title="View app in Streamlit Community Cloud"],
   56%       { transform: scale(1); }
 }
 .ftr-name {
-  font-weight: 700; color: var(--gold) !important;
-  text-decoration: none; letter-spacing: .05em;
-  text-shadow: 0 0 12px rgba(232,200,64,.55);
-  transition: text-shadow .3s;
+  font-weight: 800; color: var(--gold) !important;
+  text-decoration: none !important;
+  letter-spacing: .08em;
+  text-shadow: 0 0 8px rgba(232,200,64,.6), 0 0 20px rgba(255,215,0,.35);
+  animation: dsvbGlow 2s ease-in-out infinite;
+  background: none !important;
 }
 .ftr-name:hover {
-  text-shadow: 0 0 22px rgba(255,215,0,.85), 0 0 6px rgba(255,215,0,.5);
+  text-shadow: 0 0 18px rgba(255,215,0,.95), 0 0 36px rgba(255,215,0,.6), 0 0 6px rgba(255,215,0,.4);
+}
+@keyframes dsvbGlow {
+  0%, 100% { text-shadow: 0 0 8px rgba(232,200,64,.6), 0 0 20px rgba(255,215,0,.35); }
+  50%       { text-shadow: 0 0 16px rgba(255,215,0,1), 0 0 36px rgba(255,215,0,.65), 0 0 60px rgba(255,215,0,.25); }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -528,6 +562,53 @@ button[title="View app in Streamlit Community Cloud"],
 }
 [data-testid="stChatMessageContent"] pre code {
   background: transparent !important; color: #e2e8f0 !important;
+}
+
+
+/* ── Footer link — kill all underlines globally ─────────── */
+.aana-footer a,
+.aana-footer a:visited,
+.aana-footer a:hover,
+.aana-footer a:focus {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  outline: none !important;
+}
+
+/* ── Sidebar — enhanced section styles ──────────────────── */
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a {
+  color: rgba(88,150,255,.75) !important;
+  text-decoration: none !important;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] a:hover {
+  color: #58a6ff !important;
+}
+
+/* Sidebar form inputs look better */
+[data-testid="stSidebar"] [data-testid="stForm"] {
+  background: rgba(255,255,255,.025) !important;
+  border: 1px solid rgba(255,255,255,.07) !important;
+  border-radius: 10px !important;
+  padding: .5rem !important;
+}
+
+/* Sidebar toggle track */
+[data-testid="stSidebar"] [data-baseweb="checkbox"] span {
+  border-color: rgba(88,150,255,.4) !important;
+}
+
+/* Stronger sidebar visibility fix */
+section[data-testid="stSidebar"] {
+  display: flex !important;
+  visibility: visible !important;
+  min-width: 240px !important;
+  width: 240px !important;
+  transform: translateX(0) !important;
+  transition: transform 0.3s ease !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  min-width: 0 !important;
+  width: 0 !important;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────── */
