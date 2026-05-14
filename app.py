@@ -1,7 +1,6 @@
 import streamlit as st
 import io
 import requests
-import re
 from pathlib import Path
 
 import PyPDF2
@@ -165,43 +164,77 @@ section[data-testid="stSidebar"] .stButton button:hover { background: #388bfd !i
 """, unsafe_allow_html=True)
 
 
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-}
+# ── Google Drive API helpers ───────────────────────────────────────────────────
 
-def scrape_folder(folder_id):
-    url = f"https://drive.google.com/drive/folders/{folder_id}"
-    r = requests.get(url, headers=HEADERS, timeout=20)
-    r.raise_for_status()
-    html = r.text
-    pattern = re.compile(
-        r'\[null,null,null,"([a-zA-Z0-9_\-]{25,})",null,null,null,(\d+),null,"([^"]+)"'
-    )
+DRIVE_API = "https://www.googleapis.com/drive/v3/files"
+FOLDER_MIME = "application/vnd.google-apps.folder"
+
+
+def list_folder(folder_id, api_key):
+    """
+    List contents of a public Google Drive folder using the Drive v3 API.
+    Returns (folders, files) — each a list of (name, id) tuples.
+    """
     folders, files = [], []
-    seen_f, seen_fi = set(), set()
-    for m in pattern.finditer(html):
-        item_id, item_type, name = m.group(1), m.group(2), m.group(3)
-        if item_type == "0":
-            if item_id not in seen_f:
-                folders.append((name, item_id)); seen_f.add(item_id)
-        else:
-            if item_id not in seen_fi:
-                files.append((name, item_id)); seen_fi.add(item_id)
+    page_token = None
+
+    while True:
+        params = {
+            "q": f"'{folder_id}' in parents and trashed=false",
+            "fields": "nextPageToken,files(id,name,mimeType)",
+            "orderBy": "name",
+            "pageSize": 100,
+            "key": api_key,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+
+        r = requests.get(DRIVE_API, params=params, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+
+        if "error" in data:
+            raise RuntimeError(data["error"].get("message", str(data["error"])))
+
+        for f in data.get("files", []):
+            if f["mimeType"] == FOLDER_MIME:
+                folders.append((f["name"], f["id"]))
+            else:
+                files.append((f["name"], f["id"]))
+
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+
     return folders, files
 
 
-def download_file(file_id):
+def download_file(file_id, api_key):
+    """Download a publicly shared Drive file via the export/download URL."""
+    import re
     session = requests.Session()
-    url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
-    r = session.get(url, headers=HEADERS, timeout=40, allow_redirects=True)
-    if b"Virus scan warning" in r.content[:3000] or "virus scan warning" in r.text[:3000].lower():
-        token = re.search(r'confirm=([0-9A-Za-z_\-]+)', r.text)
-        if token:
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    # Try alt=media with API key first (works for non-Google-native files)
+    url = f"https://www.googleapis.com/drive/v3/files/{file_id}?alt=media&key={api_key}"
+    r = session.get(url, headers=headers, timeout=40, allow_redirects=True)
+
+    if r.status_code == 403 or len(r.content) < 100:
+        # Fall back to the public download URL
+        url = f"https://drive.google.com/uc?export=download&id={file_id}&confirm=t"
+        r = session.get(url, headers=headers, timeout=40, allow_redirects=True)
+
+        # Handle Google's large-file virus-scan warning page
+        if b"Virus scan warning" in r.content[:4000] or "virus scan warning" in r.text[:4000].lower():
+            token = re.search(r'confirm=([0-9A-Za-z_\-]+)', r.text)
+            uuid  = re.search(r'uuid=([0-9A-Za-z_\-]+)', r.text)
+            qs = f"&confirm={token.group(1)}" if token else ""
+            qs += f"&uuid={uuid.group(1)}" if uuid else ""
             r = session.get(
-                f"https://drive.google.com/uc?export=download&id={file_id}&confirm={token.group(1)}",
-                headers=HEADERS, timeout=40
+                f"https://drive.google.com/uc?export=download&id={file_id}{qs}",
+                headers=headers, timeout=40
             )
+
     r.raise_for_status()
     return r.content
 
@@ -222,30 +255,32 @@ def extract_text(file_bytes, filename):
 
 
 @st.cache_data(show_spinner=False, ttl=600)
-def get_structure(root_id):
+def get_structure(root_id, api_key):
+    """Build Year → Semester → Subject tree from Drive."""
     tree = {}
-    years, _ = scrape_folder(root_id)
+    years, _ = list_folder(root_id, api_key)
     for year_name, year_id in years:
         tree[year_name] = {}
-        sems, _ = scrape_folder(year_id)
+        sems, _ = list_folder(year_id, api_key)
         for sem_name, sem_id in sems:
             tree[year_name][sem_name] = {}
-            subjects, _ = scrape_folder(sem_id)
+            subjects, _ = list_folder(sem_id, api_key)
             for subj_name, subj_id in subjects:
                 tree[year_name][sem_name][subj_name] = subj_id
     return tree
 
 
 @st.cache_data(show_spinner=False, ttl=300)
-def load_subject_docs(subject_folder_id):
-    _, files = scrape_folder(subject_folder_id)
+def load_subject_docs(subject_folder_id, api_key):
+    """Download and extract all readable files in a subject folder."""
+    _, files = list_folder(subject_folder_id, api_key)
     supported = {".pdf", ".docx", ".doc", ".txt"}
     docs = {}
     for name, fid in files:
         if Path(name).suffix.lower() not in supported:
             continue
         try:
-            raw = download_file(fid)
+            raw  = download_file(fid, api_key)
             text = extract_text(raw, name)
             if text.strip():
                 docs[name] = text
@@ -254,9 +289,11 @@ def load_subject_docs(subject_folder_id):
     return docs
 
 
-def ask_gemini(api_key, question, docs):
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+# ── Gemini ─────────────────────────────────────────────────────────────────────
+
+def ask_gemini(gemini_key, question, docs):
+    genai.configure(api_key=gemini_key)
+    model   = genai.GenerativeModel("gemini-1.5-flash")
     context = "\n\n".join(
         f"=== Document: {name} ===\n{text[:12000]}" for name, text in docs.items()
     )
@@ -274,18 +311,22 @@ Student question: {question}"""
     return model.generate_content(prompt).text
 
 
+# ── Session state ──────────────────────────────────────────────────────────────
 for k, v in [("messages", []), ("current_subject_id", None), ("docs", {})]:
     if k not in st.session_state:
         st.session_state[k] = v
 
-ROOT_FOLDER_ID = st.secrets.get("DRIVE_ROOT_FOLDER_ID", "16fXr2rCCz_5zROjH_BGAGXPRar3Rr9Ud")
+ROOT_FOLDER_ID  = st.secrets.get("DRIVE_ROOT_FOLDER_ID", "")
+DRIVE_API_KEY   = st.secrets.get("GOOGLE_DRIVE_API_KEY", "")
 
+
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("## 📚 StudyMate AI")
     st.markdown("<hr style='border-color:#21262d;margin:0.75rem 0'>", unsafe_allow_html=True)
 
     st.markdown("### 🔑 Gemini API Key")
-    api_key = st.text_input("", type="password", placeholder="AIza...", label_visibility="collapsed")
+    gemini_key = st.text_input("", type="password", placeholder="AIza...", label_visibility="collapsed")
     st.markdown(
         "<small style='color:#8b949e'>Get free key → "
         "<a href='https://aistudio.google.com/app/apikey' style='color:#58a6ff'>aistudio.google.com</a></small>",
@@ -295,15 +336,24 @@ with st.sidebar:
     st.markdown("<hr style='border-color:#21262d;margin:1rem 0'>", unsafe_allow_html=True)
     st.markdown("### 📂 Your Subject")
 
+    if not DRIVE_API_KEY or not ROOT_FOLDER_ID:
+        st.error("⚠️ DRIVE_ROOT_FOLDER_ID and GOOGLE_DRIVE_API_KEY must be set in Streamlit secrets.")
+        st.stop()
+
     with st.spinner("Loading folders…"):
         try:
-            structure = get_structure(ROOT_FOLDER_ID)
+            structure = get_structure(ROOT_FOLDER_ID, DRIVE_API_KEY)
         except Exception as e:
-            st.error(f"Drive error: {e}")
+            st.error(f"Drive API error: {e}")
+            st.markdown(
+                "<small style='color:#8b949e'>Make sure the Drive API is enabled for this key "
+                "and the folder is shared publicly.</small>",
+                unsafe_allow_html=True,
+            )
             st.stop()
 
     if not structure:
-        st.warning("No folders found. Check Drive sharing settings.")
+        st.warning("No year folders found inside the root folder. Check your Drive structure.")
         st.stop()
 
     year_choice = st.selectbox("Year",     list(structure.keys()))
@@ -318,9 +368,9 @@ with st.sidebar:
     subj_id     = subjects[subj_choice]
 
     if subj_id != st.session_state.current_subject_id:
-        st.session_state.messages = []
+        st.session_state.messages           = []
         st.session_state.current_subject_id = subj_id
-        st.session_state.docs = {}
+        st.session_state.docs               = {}
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     load_btn = st.button("📥 Load Subject Docs", use_container_width=True)
@@ -334,14 +384,18 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+
+# ── Load docs ──────────────────────────────────────────────────────────────────
 if load_btn:
     with st.spinner(f"Loading docs for {subj_choice}…"):
-        st.session_state.docs = load_subject_docs(subj_id)
+        st.session_state.docs = load_subject_docs(subj_id, DRIVE_API_KEY)
     if not st.session_state.docs:
         st.warning("No readable PDF or DOCX files found in this subject folder.")
 
 docs = st.session_state.docs
 
+
+# ── Main area ──────────────────────────────────────────────────────────────────
 if not docs:
     st.markdown("""
     <div class="hero">
@@ -388,13 +442,13 @@ else:
 
     question = st.chat_input(f"Ask about {subj_choice}…")
     if question:
-        if not api_key:
+        if not gemini_key:
             st.error("⚠️ Paste your Gemini API key in the sidebar first.")
         else:
             st.session_state.messages.append({"role": "user", "content": question})
             with st.spinner("Thinking…"):
                 try:
-                    answer = ask_gemini(api_key, question, docs)
+                    answer = ask_gemini(gemini_key, question, docs)
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                     st.rerun()
                 except Exception as e:
@@ -402,4 +456,4 @@ else:
                     if "API_KEY_INVALID" in err or "invalid" in err.lower():
                         st.error("❌ Invalid Gemini API key. Get a free one at aistudio.google.com")
                     else:
-                        st.error(f"Error: {err}")
+                        st.error(f"Gemini error: {err}")
