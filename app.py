@@ -1,3 +1,4 @@
+# app.py
 """
 ආනාගේ AI — StudyMate
 Premium rebuild — SVG icons, sticky footer, sidebar always visible.
@@ -155,7 +156,7 @@ def extract_text(file_bytes, filename):
     except Exception as e:
         return f"[Could not read {filename}: {e}]"
 
-@st.cache_data(show_spinner=False, ttl=1800)
+@st.cache_data(show_spinner=False, ttl=1800)  # 30 min cache
 def get_structure(root_id, api_key):
     tree = {}
     years, _ = list_folder(root_id, api_key)
@@ -169,7 +170,7 @@ def get_structure(root_id, api_key):
                 tree[year_name][sem_name][subj_name] = subj_id
     return tree
 
-@st.cache_data(show_spinner=False, ttl=600)
+@st.cache_data(show_spinner=False, ttl=600)  # 10 min cache
 def load_subject_docs(subject_folder_id, api_key):
     SUPPORTED = {".pdf", ".docx", ".doc", ".txt", ".md", ".csv",
                  ".json", ".pptx", ".xlsx", ".xls"}
@@ -251,7 +252,7 @@ def img_b64(path_str):
     return ""
 
 ADMIN_IMG_PATH = Path(__file__).parent / "assets" / "admin" / "admin.jpg"
-ADMIN_IMG_SRC  = img_b64(ADMIN_IMG_PATH) or "https://ui-avatars.com/api/?name=AI&background=162b56&color=9ecfff&size=90"
+ADMIN_IMG_SRC  = img_b64(ADMIN_IMG_PATH) or "https://ui-avatars.com/api/?name=AI&background=1e293b&color=3b82f6&size=100"
 
 # ── SVG icon helpers ───────────────────────────────────────────────────────────
 def ico(path, size=14, color="currentColor"):
@@ -273,47 +274,28 @@ def ico(path, size=14, color="currentColor"):
         "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
         "video":    '<polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/>',
         "star":     '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+        "user":     '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>'
     }
     svg_content = icons.get(path, '<circle cx="12" cy="12" r="5"/>')
     return f'<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">{svg_content}</svg>'
 
-def sb_btn_label(icon_name, text, color="rgba(184,196,216,.8)"):
-    return f'{ico(icon_name, 13, color)}&nbsp;&nbsp;{text}'
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   HIDE STREAMLIT CHROME (but NOT sidebar collapse)
-# ══════════════════════════════════════════════════════════════════════════════
-st.markdown("""
-<style>
-#MainMenu { visibility: hidden !important; }
-header[data-testid="stHeader"] { display: none !important; }
-footer { display: none !important; }
-[data-testid="stToolbar"] { display: none !important; }
-[data-testid="manage-app-button"] { display: none !important; }
-.stDeployButton { display: none !important; }
-button[title="View app in Streamlit Community Cloud"] { display: none !important; }
-[data-testid="stStatusWidget"] { display: none !important; }
-[data-testid="stDecoration"] { display: none !important; }
-</style>
-""", unsafe_allow_html=True)
-
-# ══════════════════════════════════════════════════════════════════════════════
-#   HEADER
+#   HEADER (Fixed Navbar)
 # ══════════════════════════════════════════════════════════════════════════════
 google_active = st.session_state.google_search
 admin_in      = st.session_state.admin_logged_in
 
-google_icon = ico("globe", 12, "#4ade80" if google_active else "rgba(255,255,255,.35)")
+google_icon = ico("globe", 14, "#10b981" if google_active else "#94a3b8")
 google_txt  = "Google ON" if google_active else "Google OFF"
-admin_icon  = ico("unlock" if admin_in else "lock", 12, "#e8c840")
-admin_txt   = "Logged In" if admin_in else "Admin"
+admin_icon  = ico("unlock" if admin_in else "lock", 14, "#eab308" if admin_in else "#94a3b8")
+admin_txt   = "Admin Active" if admin_in else "Status: User"
 
 st.markdown(f"""
 <div class="aana-header">
   <div class="hdr-left">
     <div class="hdr-avatar-wrap">
-      <img src="{ADMIN_IMG_SRC}" alt="ආනා" class="hdr-avatar"
-           onerror="this.src='https://ui-avatars.com/api/?name=AI&background=0f1628&color=3b82f6&size=38'">
+      <img src="{ADMIN_IMG_SRC}" alt="ආනා" class="hdr-avatar">
     </div>
     <div class="hdr-title-wrap">
       <div class="hdr-brand">
@@ -324,12 +306,12 @@ st.markdown(f"""
     </div>
   </div>
   <div class="hdr-right">
-    <span class="hdr-pill hdr-pill-google {'active' if google_active else ''}">{google_icon}&nbsp;{google_txt}</span>
-    <span class="hdr-pill hdr-pill-admin">{admin_icon}&nbsp;{admin_txt}</span>
+    <div class="hdr-pill {'active' if google_active else ''}">{google_icon}&nbsp;{google_txt}</div>
+    <div class="hdr-pill {'admin' if admin_in else ''}">{admin_icon}&nbsp;{admin_txt}</div>
   </div>
 </div>
-<div class="hdr-shimmer"></div>
 """, unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   CHECK SECRETS
@@ -337,6 +319,7 @@ st.markdown(f"""
 if not DRIVE_API_KEY or not ROOT_FOLDER_ID:
     st.error("⚠️ DRIVE_ROOT_FOLDER_ID and GOOGLE_DRIVE_API_KEY must be set in Streamlit secrets.")
     st.stop()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   SIDEBAR
@@ -351,7 +334,7 @@ with st.sidebar:
     if st.session_state.show_free_keys:
         st.markdown('<div class="fk-warn-box">', unsafe_allow_html=True)
         st.markdown("**මෙවුවා හැමෝම use කරනවා — limit වැදිලා ඇති** 😤\n\nVideo බලලා තමන්ගේ key හදාගනිං:")
-        st.markdown(f'[{ico("video",12,"#58a6ff")}&nbsp; How to get your free API key](https://youtu.be/YOUR_VIDEO_LINK_HERE)', unsafe_allow_html=False)
+        st.markdown(f'[{ico("video",12,"#3b82f6")}&nbsp; How to get your free API key](https://youtu.be/YOUR_VIDEO_LINK_HERE)', unsafe_allow_html=False)
         free_keys = st.session_state.free_api_keys
         if free_keys:
             for k in free_keys:
@@ -370,10 +353,10 @@ with st.sidebar:
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
     # ── API Key ─────────────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Gemini API Key</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sb-label">{ico("key",12,"#3b82f6")}&nbsp; Gemini API Key</div>', unsafe_allow_html=True)
     api_key_input = st.text_input(
         "API Key", value=st.session_state.gemini_key,
-        type="password", placeholder="AIza…",
+        type="password", placeholder="AIza...",
         label_visibility="collapsed", key="api_key_field"
     )
     if api_key_input != st.session_state.gemini_key:
@@ -390,17 +373,17 @@ with st.sidebar:
             else:
                 st.warning("Paste your key first!")
     with col_link:
-        st.markdown('[Get free key ↗](https://aistudio.google.com/app/apikey)')
+        st.markdown('<div style="margin-top: 8px;"><a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: #60a5fa; text-decoration: none; font-size: 0.8rem;">Get free key ↗</a></div>', unsafe_allow_html=True)
 
     if st.session_state.api_key_status == "ok":
-        st.success("API key valid!")
+        st.success("✅ API key valid!")
     elif st.session_state.api_key_status == "err":
-        st.error("Invalid key — try another")
+        st.error("❌ Invalid key — try another")
 
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
     # ── Google Search ───────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("globe",11,"#58a6ff")}&nbsp; Google Search</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sb-label">{ico("globe",12,"#3b82f6")}&nbsp; Web Search</div>', unsafe_allow_html=True)
     google_on = st.toggle(
         "Enable Google Search", value=st.session_state.google_search,
         key="google_toggle",
@@ -415,7 +398,7 @@ with st.sidebar:
     st.markdown('<div class="sb-divider"></div>', unsafe_allow_html=True)
 
     # ── Subject tree ─────────────────────────────────────────────────────────
-    st.markdown(f'<div class="sb-label">{ico("folder",11,"#58a6ff")}&nbsp; Select Subject</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="sb-label">{ico("folder",12,"#3b82f6")}&nbsp; Select Subject</div>', unsafe_allow_html=True)
 
     try:
         with st.spinner("Loading subjects…"):
@@ -432,7 +415,7 @@ with st.sidebar:
                 with st.expander(f"{sem_name}", expanded=False):
                     for subj_name, subj_id in subjects.items():
                         is_sel = subj_id == st.session_state.current_subject_id
-                        label = f"{'✓ ' if is_sel else ''}{subj_name}"
+                        label = f"{'✅ ' if is_sel else ''}{subj_name}"
                         if st.button(label, key=f"subj_{subj_id}", use_container_width=True):
                             selected_id, selected_name = subj_id, subj_name
 
@@ -448,8 +431,8 @@ with st.sidebar:
 
     # ── Load / New Chat ──────────────────────────────────────────────────────
     if st.session_state.current_subject_id:
-        st.markdown(f'<div class="sb-subject-pill">{ico("folder",12,"#9ecfff")}&nbsp; {st.session_state.subject_name}</div>', unsafe_allow_html=True)
-        if st.button("Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
+        st.markdown(f'<div class="sb-subject-pill">{ico("folder",14,"#60a5fa")}&nbsp; {st.session_state.subject_name}</div>', unsafe_allow_html=True)
+        if st.button("⬇️ Load Subject Docs", use_container_width=True, type="primary", key="btn_load"):
             with st.spinner(f"Loading docs for {st.session_state.subject_name}…"):
                 st.session_state.docs = load_subject_docs(st.session_state.current_subject_id, DRIVE_API_KEY)
                 st.session_state.messages = []
@@ -457,7 +440,7 @@ with st.sidebar:
             st.rerun()
 
     if st.session_state.messages:
-        if st.button("New Chat", use_container_width=True, key="btn_new_chat"):
+        if st.button("💬 New Chat", use_container_width=True, key="btn_new_chat"):
             st.session_state.messages = []
             st.session_state.greeting_shown = False
             st.rerun()
@@ -466,7 +449,7 @@ with st.sidebar:
 
     # ── Admin ────────────────────────────────────────────────────────────────
     if not st.session_state.admin_logged_in:
-        if st.button("Admin Login", use_container_width=True, key="btn_admin"):
+        if st.button("⚙️ Admin Login", use_container_width=True, key="btn_admin"):
             st.session_state.show_admin = not st.session_state.show_admin
 
         if st.session_state.show_admin:
@@ -483,8 +466,8 @@ with st.sidebar:
                     else:
                         st.error("Invalid credentials")
     else:
-        st.markdown(f'<div class="sb-admin-on">{ico("settings",12,"#e8c840")}&nbsp; Admin Mode</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="sb-label">{ico("key",11,"#58a6ff")}&nbsp; Free API Keys</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sb-admin-on">{ico("settings",14,"#eab308")}&nbsp; Admin Active</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sb-label">{ico("key",12,"#3b82f6")}&nbsp; Manage API Keys</div>', unsafe_allow_html=True)
 
         for i, k in enumerate(st.session_state.free_api_keys):
             c1, c2 = st.columns([4, 1])
@@ -497,7 +480,7 @@ with st.sidebar:
                     st.session_state.free_api_keys.pop(i)
                     st.rerun()
 
-        if st.button("Add API Key", use_container_width=True, key="btn_add_key"):
+        if st.button("➕ Add API Key", use_container_width=True, key="btn_add_key"):
             st.session_state.free_api_keys.append("")
             st.rerun()
 
@@ -508,12 +491,10 @@ with st.sidebar:
     st.markdown('<div class="sb-footer">Docs refresh every 5 min · Drop new files in Drive anytime</div>', unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#   MAIN CONTENT WRAPPER — ensures footer stays at bottom
+#   MAIN CONTENT
 # ══════════════════════════════════════════════════════════════════════════════
 docs      = st.session_state.docs
 subj_name = st.session_state.subject_name
-
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
 
 if not docs:
     if not st.session_state.current_subject_id:
@@ -543,7 +524,7 @@ if not docs:
     else:
         st.markdown(f"""
         <div class="load-banner">
-          <div class="lb-icon-wrap">{ico("download", 28, "#1b3568")}</div>
+          <div class="lb-icon-wrap">{ico("download", 32, "#3b82f6")}</div>
           <div class="lb-title">Load Subject Docs</div>
           <div class="lb-sub"><strong>{subj_name}</strong> select කරලා තියෙනවා.<br>
           Sidebar එකේ <strong>Load Subject Docs</strong> button එක press කරන්නකෝ!</div>
@@ -551,16 +532,16 @@ if not docs:
         """, unsafe_allow_html=True)
 else:
     doc_names = list(docs.keys())
-    gsearch_badge = f'&nbsp;{ico("globe",11,"#16a34a")}&nbsp;<span class="gsearch-badge">Google ON</span>' if st.session_state.google_search else ""
+    gsearch_badge = f'&nbsp;{ico("globe",14,"#10b981")}&nbsp;<span class="gsearch-badge">Google ON</span>' if st.session_state.google_search else ""
     tags_html = "&nbsp;".join(f'<span class="doc-tag">{n}</span>' for n in doc_names[:4])
     if len(doc_names) > 4:
         tags_html += f' <span class="doc-tag">+{len(doc_names)-4} more</span>'
     st.markdown(f"""
     <div class="status-bar">
-      <span>{ico("folder",13,"#1b3568")}&nbsp;<strong>{subj_name}</strong></span>
-      <span class="status-sep">·</span>
-      <span>{len(doc_names)} doc{'s' if len(doc_names)!=1 else ''}</span>
-      <span class="status-sep">·</span>
+      <span class="status-title">{ico("folder",16,"#3b82f6")}&nbsp;<strong>{subj_name}</strong></span>
+      <span class="status-sep">|</span>
+      <span class="status-count">{len(doc_names)} doc{'s' if len(doc_names)!=1 else ''}</span>
+      <span class="status-sep">|</span>
       {tags_html}{gsearch_badge}
     </div>
     """, unsafe_allow_html=True)
@@ -575,32 +556,33 @@ else:
         st.session_state.greeting_shown = True
 
     for msg in st.session_state.messages:
-        if msg["role"] == "user":
-            with st.chat_message("user"):
-                st.markdown(msg["content"])
-        else:
-            with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
-                st.markdown(msg["content"])
-                if (not st.session_state.google_search
-                        and not msg.get("is_greeting")
-                        and any(x in msg["content"].lower() for x in [
-                            "not in the documents", "not found", "cannot find",
-                            "no information", "document doesn't", "isn't in"
-                        ])):
-                    if st.button("🌐 Enable Google Search for a better answer",
-                                 key=f"gs_suggest_{msg['content'][:20]}"):
-                        st.session_state.google_search = True
-                        st.rerun()
+        avatar_img = ADMIN_IMG_SRC if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar_img):
+            st.markdown(msg["content"])
+            
+            # Suggest Google search if notes didn't have the answer
+            if (msg["role"] == "assistant" 
+                and not st.session_state.google_search
+                and not msg.get("is_greeting")
+                and any(x in msg["content"].lower() for x in [
+                    "not in the documents", "not found", "cannot find",
+                    "no information", "document doesn't", "isn't in"
+                ])):
+                if st.button("🌐 Enable Google Search for a better answer",
+                             key=f"gs_suggest_{msg['content'][:20]}"):
+                    st.session_state.google_search = True
+                    st.rerun()
 
     if question := st.chat_input(f"Ask about {subj_name}…"):
         key = st.session_state.gemini_key
         if not key:
-            st.error("Sidebar එකේ API key paste කරන්න!")
+            st.error("Sidebar එකේ API key එක paste කරන්නකෝ first!")
         else:
             st.session_state.messages.append({"role": "user", "content": question})
-            with st.chat_message("user"):
+            with st.chat_message("user", avatar="👤"):
                 st.markdown(question)
-            with st.chat_message("assistant", avatar=ADMIN_IMG_SRC if ADMIN_IMG_PATH.exists() else "🤖"):
+                
+            with st.chat_message("assistant", avatar=ADMIN_IMG_SRC):
                 if st.session_state.google_search:
                     st.caption("🌐 Google Search enabled — may enhance your answer")
                 with st.spinner("AI ආනා thinking…"):
@@ -613,12 +595,10 @@ else:
                     except Exception as e:
                         err = str(e)
                         if "API_KEY_INVALID" in err or "invalid" in err.lower():
-                            st.error("Invalid Gemini API key. Get a free one at aistudio.google.com")
+                            st.error("❌ Invalid Gemini API key. Get a free one at aistudio.google.com")
                             st.session_state.api_key_status = "err"
                         else:
                             st.error(f"Gemini error: {err}")
-
-st.markdown('</div>', unsafe_allow_html=True)  # close main-content
 
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -630,44 +610,4 @@ st.markdown("""
     </div>
   </div>
 </div>
-""", unsafe_allow_html=True)
-
-# ──────────────────────────────────────────────────────────────
-# FORCE DARK TEXT IN ASSISTANT MESSAGES + CIRCLE AVATARS (JS)
-# ──────────────────────────────────────────────────────────────
-st.markdown("""
-<script>
-function fixAssistantMessages() {
-    // Select all assistant message content divs
-    const assistantBubbles = document.querySelectorAll('[data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageContent"]');
-    assistantBubbles.forEach(bubble => {
-        bubble.style.color = '#1e1e2a';  // dark text
-        bubble.style.background = '#ffffff';  // white background
-        bubble.style.border = '1px solid #e2ddd4';
-        // Force all children to have dark text
-        const allChildren = bubble.querySelectorAll('*');
-        allChildren.forEach(child => {
-            child.style.color = '#1e1e2a';
-        });
-    });
-    
-    // Fix assistant avatars to perfect circle with glow
-    const assistantAvatars = document.querySelectorAll('[data-testid="stChatMessage"][data-role="assistant"] img, [data-testid="stChatMessage"][data-role="assistant"] [data-testid="stChatMessageAvatarIcon"]');
-    assistantAvatars.forEach(avatar => {
-        avatar.style.borderRadius = '50%';
-        avatar.style.width = '36px';
-        avatar.style.height = '36px';
-        avatar.style.objectFit = 'cover';
-        avatar.style.border = '2px solid rgba(27,53,104,0.3)';
-        avatar.style.boxShadow = '0 0 0 2px rgba(59,130,246,0.2), 0 0 12px rgba(59,130,246,0.4)';
-    });
-}
-
-// Run on load
-fixAssistantMessages();
-
-// Also run after Streamlit updates (every rerun)
-const observer = new MutationObserver(fixAssistantMessages);
-observer.observe(document.body, { childList: true, subtree: true });
-</script>
 """, unsafe_allow_html=True)
