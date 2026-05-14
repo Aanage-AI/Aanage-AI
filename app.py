@@ -293,7 +293,7 @@ def load_subject_docs(subject_folder_id, api_key):
 
 def ask_gemini(gemini_key, question, docs):
     genai.configure(api_key=gemini_key)
-    model   = genai.GenerativeModel("gemini-2.0-flash")
+    model   = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
     context = "\n\n".join(
         f"=== Document: {name} ===\n{text[:12000]}" for name, text in docs.items()
     )
