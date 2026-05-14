@@ -68,29 +68,48 @@ button[title="View app in Streamlit Community Cloud"],
 .main-content {
   flex: 1;
   min-height: calc(100vh - 200px);
-  padding-bottom: 1rem;
+  padding-bottom: 4rem;  /* clearance for fixed footer */
 }
 
 /* ═══════════════════════════════════════════════════════════
    SIDEBAR — force always visible, premium dark
    ═══════════════════════════════════════════════════════════ */
 
-/* The key fix: override Streamlit's translate-based hide */
-section[data-testid="stSidebar"] {
+/* Force sidebar always visible — covers both translate-based AND display:none approaches */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"][aria-expanded="true"],
+section[data-testid="stSidebar"][aria-expanded="false"] {
+  display: flex !important;
+  flex-direction: column !important;
   transform: translateX(0) !important;
   visibility: visible !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
   background: var(--sidebar-bg) !important;
   border-right: 1px solid rgba(255,255,255,.06) !important;
   min-width: 252px !important;
   max-width: 252px !important;
   width: 252px !important;
-  transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
+  transition: none !important;
+  position: relative !important;
+  height: 100vh !important;
 }
-/* When user deliberately collapses it */
-section[data-testid="stSidebar"][aria-expanded="false"] {
-  transform: translateX(-252px) !important;
-  min-width: 252px !important;
+/* Override any Streamlit-injected inline display:none or style overrides */
+section[data-testid="stSidebar"][style*="display: none"],
+section[data-testid="stSidebar"][style*="display:none"] {
+  display: flex !important;
+}
+/* Also target the inner nav wrapper Streamlit sometimes hides */
+section[data-testid="stSidebar"] > div {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Hide the collapse/expand toggle button entirely so sidebar stays forced open */
+[data-testid="stSidebarCollapseButton"],
+button[data-testid="stSidebarCollapseButton"] {
+  display: none !important;
 }
 
 [data-testid="stSidebarContent"] {
@@ -521,14 +540,19 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
 [data-testid="stChatInput"] button:hover { background: var(--accent-glow) !important; }
 
 /* ═══════════════════════════════════════════════════════════
-   FOOTER — pinned to bottom, compact, tight lines
+   FOOTER — fixed to bottom of viewport, always visible
    ═══════════════════════════════════════════════════════════ */
 .aana-footer {
-  margin-left: -2rem; margin-right: -2rem;
-  width: calc(100% + 4rem);
+  position: fixed;
+  bottom: 0;
+  left: 252px;             /* offset by sidebar width */
+  right: 0;
+  z-index: 998;
+  width: auto;
+  margin: 0;
   background: linear-gradient(120deg, #080e1e 0%, #0f1e42 55%, #0a1630 100%);
-  padding: .6rem 2rem;
-  margin-top: auto;
+  padding: .45rem 2rem;
+  box-shadow: 0 -2px 16px rgba(0,0,0,.35);
 }
 .ftr-inner {
   display: flex; flex-direction: column;
@@ -616,8 +640,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
     width: calc(100% + 2rem);
   }
   .aana-footer {
-    margin-left: -1rem; margin-right: -1rem;
-    width: calc(100% + 2rem); padding: .55rem 1rem;
+    left: 0;
+    padding: .4rem 1rem;
   }
   .hdr-sinhala, .hdr-ai-text { font-size: .92rem; }
   .hdr-sub { display: none; }
